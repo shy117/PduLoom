@@ -1,0 +1,23 @@
+node_modules/
+dist/
+*.local
+coverage/
+.npm-cache/
+
+# 本机环境、日志和临时文件
+.env
+.env.*
+!.env.example
+*.log
+*.tsbuildinfo
+*.tmp
+*.temp
+*.bak
+*~
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# 本机编辑器配置
+.idea/
+.vscode/
