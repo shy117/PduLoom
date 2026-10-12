@@ -91,11 +91,11 @@ async function copy(value: string) {
       <p v-if="error" role="alert" class="checksum-error">{{ error }}</p>
       <div v-if="result" class="demo-result" aria-live="polite">
         <p>{{ checksumName }} 数值：<code>0x{{ hex(result.checksum, checksumLength * 2) }}</code></p>
-        <div class="result-label">{{ checksumName }} 字节 · {{ algorithm === 'lrc' ? '单字节' : order === 'low-first' ? '低字节在前' : '高字节在前' }}</div>
-        <div class="crc-byte-row"><code class="large-code">{{ checksumText }}</code><button class="crc-copy-button" :aria-label="`复制 ${checksumName} 字节`" :title="`复制 ${checksumName} 字节`" @click="copy(checksumText)"><Copy :size="16" />复制</button></div>
+        <div class="result-label result-copy-label"><span>{{ checksumName }} 字节<span class="result-copy-detail"> · {{ algorithm === 'lrc' ? '单字节' : order === 'low-first' ? '低字节在前' : '高字节在前' }}</span></span></div>
+        <div class="result-copy-row"><pre class="result-copy-content">{{ checksumText }}</pre><button class="result-copy-button" :aria-label="`复制 ${checksumName} 字节`" :title="`复制 ${checksumName} 字节`" @click="copy(checksumText)"><Copy :size="16" />复制</button></div>
         <template v-if="result.received !== undefined"><p>报文中 {{ checksumName }} 字节：<code>{{ bytesText(result.receivedBytes!) }}</code></p><p>报文中 {{ checksumName }} 数值：<code>0x{{ hex(result.received, checksumLength * 2) }}</code></p><p :class="result.valid ? 'checksum-success' : 'checksum-error'">{{ result.valid ? `${checksumName} 校验通过` : `${checksumName} 校验失败：报文校验值与计算值不一致` }}</p><p>此结果仅判断校验值是否匹配，不代表报文业务结构有效。</p></template>
         <div class="crc-frame-heading"><span>{{ mode === 'verify' ? `重新生成的完整报文（替换原 ${checksumName}）` : '追加校验码后的完整报文' }}</span></div>
-        <div class="crc-frame-row"><pre class="crc-frame-output">{{ frameText }}</pre><button class="crc-copy-button" aria-label="复制完整报文" title="复制完整报文" @click="copy(frameText)"><Copy :size="16" />复制</button></div>
+        <div class="result-copy-row"><pre class="result-copy-content">{{ frameText }}</pre><button class="result-copy-button" aria-label="复制完整报文" title="复制完整报文" @click="copy(frameText)"><Copy :size="16" />复制</button></div>
         <p v-if="algorithm === 'lrc'" class="checksum-hint">完整报文以冒号起始、CRLF 结束，无空格；复制包含实际回车和换行，可按文本 / ASCII 模式发送。</p>
         <p v-if="algorithm === 'crc16' && order === 'high-first'" class="checksum-hint">高字节在前的输出不符合 Modbus RTU 标准。</p>
       </div>

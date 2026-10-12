@@ -32,4 +32,20 @@ CRC16 已接入校验计算页面，支持计算、完整报文 CRC 校验、输
 
 校验计算页面为通用工具，目前提供 CRC16 / Modbus 和 LRC / Modbus ASCII。两种算法均支持计算、校验、复制校验字节和追加或替换校验值后的报文；LRC 为单字节，不显示字节顺序选项。空输入时填入对应算法的示例再执行，切换算法后清除旧结果并保留输入。LRC 校验输入仍使用 HEX 数据字节；完整报文输出及复制包含 ASCII 帧的冒号和实际 CRLF，无空格，可按文本 / ASCII 模式发送。例如默认示例输出 `:010300000002FA` 后跟 CRLF。
 
-Modbus PDU、RTU / TCP 编解码、ASCII 帧解析和数据转换尚未实现。
+## 已实现：数据类型转换
+
+模块：`data-conversion.ts`。核心不依赖界面，供数据转换、后续报文生成和解析复用。
+
+- `encodeDataValue(input, type, order?)`：十进制字符串编码为字节数组；整数先用 BigInt 校验范围，64 位整数编码不经过 Number。
+- `decodeDataValue(data, type, order?)`：解码恰好一个数据项，64 位整数返回 bigint，其他类型返回 number；不修改输入。
+- `getByteLength(type)` / `getByteOrders(type)`：获取类型长度和支持的字节序，默认采用首个标准大端顺序。
+- `formatDataValue(value)`：格式化数值，保留负零和完整 64 位整数。
+- `bytesToRegisters(data)`：按实际字节排列每两个字节拆分为一个 UINT16 寄存器，不额外交换顺序。
+
+类型支持 UINT16、INT16、UINT32、INT32、UINT64、INT64、FLOAT32 和 FLOAT64。16 位字节序为 AB / BA；32 位为 ABCD / BADC / CDAB / DCBA；64 位为 ABCDEFGH / BADCFEHG / GHEFCDAB / HGFEDCBA。字母按标准大端字节依次编号，分别表示大端、寄存器内字节交换、寄存器顺序反转和全字节反转。FLOAT32 占 4 字节、两个寄存器，FLOAT64 占 8 字节、四个寄存器。
+
+整数只接受十进制整数，不接受小数、科学计数法或进制前缀。浮点数接受小数、科学计数法、NaN 和正负 Infinity；有限数值溢出或下溢为零时报错，允许非零次正规数。浮点数按 IEEE 754 精度舍入，FLOAT32 舍入改变数值时页面显示提示。HEX 解码保留原输入字节，包括 NaN 的不同编码；重新编码 NaN 不保证保留原始 NaN 位模式。测试采用二进制补码整数向量，以及 [Oracle IEEE 格式说明表 3、表 5](https://docs.oracle.com/cd/E60778_01/html/E60763/z4000ac019878.html) 的浮点标准向量。
+
+页面支持单项数值与 HEX 双向转换，空输入时按当前配置填入示例再转换；修改输入或配置后清除结果。提供数值和带空格 HEX 的复制，不提供系数和偏移量。
+
+Modbus PDU、RTU / TCP 编解码及 ASCII 帧解析尚未实现。
