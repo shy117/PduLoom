@@ -1,0 +1,2 @@
+# 文本文件在工作区统一使用 Windows 换行；二进制文件由 Git 自动识别。
+* text=auto eol=crlf

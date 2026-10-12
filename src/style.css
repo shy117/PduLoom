@@ -69,3 +69,22 @@ main { padding: 24px; }
   .topbar-brand strong { font-size: 14px; }
   .stage-tag { display: none; }
 }
+
+.checksum-hint { font-size: 12px; color: var(--muted); line-height: 1.7; margin: 0; }
+.checksum-error { color: #d54747; font-size: 13px; line-height: 1.7; margin-top: 16px; }
+.checksum-success { color: #26895f; }
+:root[data-theme="dark"] .checksum-error { color: #ff8e8e; }
+:root[data-theme="dark"] .checksum-success { color: #72d6a3; }
+
+.crc-order { display: flex; flex-direction: column; gap: 10px; }
+.crc-order legend { font-size: 12px; margin-bottom: 10px; }
+.crc-order label { flex-direction: row; align-items: center; gap: 8px; }
+.crc-order input { width: 15px; height: 15px; padding: 0; accent-color: var(--accent); }
+.crc-byte-row, .crc-frame-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.crc-byte-row .large-code { margin: 6px 0; }
+.crc-copy-button { display: flex; align-items: center; gap: 6px; flex-shrink: 0; padding: 8px; background: transparent; color: var(--text); border: 1px solid var(--border); border-radius: 6px; font-size: 12px; }
+.crc-copy-button:hover { background: var(--soft); }
+.crc-frame-heading { font-size: 12px; color: var(--muted); margin-top: 14px; }
+.crc-frame-output { flex: 1; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.8; color: var(--text); border: 1px solid var(--border); border-radius: 7px; padding: 10px 12px; margin: 0; }
+
+.crc-frame-row { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
