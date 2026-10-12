@@ -82,7 +82,7 @@ async function copy(value: string) {
         <p v-else class="checksum-hint">输入一个十进制整数，不支持小数、科学计数法或进制前缀。64 位整数保持完整精度。</p>
         <p class="checksum-hint">空输入时自动填入当前类型、方向和字节序对应的示例再转换。</p>
         <div class="action-row">
-          <button type="submit" class="primary-button">转换数据</button>
+          <button type="submit" class="primary-button">转换</button>
           <button type="button" class="secondary-button" @click="input = ''">清空</button>
         </div>
         <p v-if="error" role="alert" class="checksum-error">{{ error }}</p>

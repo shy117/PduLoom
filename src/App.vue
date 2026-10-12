@@ -14,6 +14,7 @@ const sidebarExpanded = ref(true);
 const icons = { format: Repeat, builder: FileInput, parser: ScanLine, checksum: ShieldCheck, converter: ArrowLeftRight };
 const views = { format: FormatConverter, builder: FrameBuilder, parser: FrameParser, checksum: Checksum, converter: DataConverter };
 const page = computed(() => pages.find(item => item.id === activePage.value)!);
+const isPlaceholderPage = computed(() => activePage.value === 'parser' || activePage.value === 'format');
 let savedTheme: string | null = null;
 try { savedTheme = localStorage.getItem('pduloom-theme'); } catch { /* 存储受限时使用系统主题。 */ }
 const theme = ref(resolveTheme(savedTheme, window.matchMedia('(prefers-color-scheme: dark)').matches));
@@ -37,12 +38,12 @@ applyTheme();
         <p class="nav-group general-group">通用工具</p>
         <button v-for="item in pages.slice(3)" :key="item.id" class="nav-button" :class="{ active: activePage === item.id }" :aria-label="item.title" :title="sidebarExpanded ? undefined : item.title" :aria-current="activePage === item.id ? 'page' : undefined" @click="activePage = item.id"><component :is="icons[item.id]" :size="18" /><span class="nav-label">{{ item.title }}</span></button>
       </nav>
-      <div class="sidebar-footer"><span class="status-dot"></span>本地计算<p>v0.1.0 · 基础框架</p></div>
+      <div class="sidebar-footer"><span class="status-dot"></span>本地计算<p>v0.1.0</p></div>
     </aside>
     <div class="main-shell">
       <header class="topbar"><div class="topbar-brand"><strong>PduLoom</strong><span class="topbar-subtitle">Protocol Frame Builder &amp; Analyzer</span></div><button class="theme-button" :aria-label="theme === 'light' ? '切换深色主题' : '切换浅色主题'" @click="changeTheme"><Moon v-if="theme === 'light'" :size="18" /><Sun v-else :size="18" /><span>{{ theme === 'light' ? '深色主题' : '浅色主题' }}</span></button></header>
-      <main><div class="page-heading"><div><p class="eyebrow">{{ activePage === 'builder' || activePage === 'parser' || activePage === 'format' ? 'Modbus 协议工具' : '通用工具' }}</p><h1>{{ page.title }}</h1><p>{{ page.description }}</p></div><span v-if="activePage !== 'checksum' && activePage !== 'converter'" class="stage-tag">基础界面</span></div>
-        <div v-if="activePage !== 'checksum' && activePage !== 'converter'" class="stage-notice">当前页面为基础框架。固定示例均标记为演示，“校验计算”和“数据转换”已可使用，其余协议功能尚未接入。</div>
+      <main><div class="page-heading"><div><p class="eyebrow">{{ activePage === 'builder' || activePage === 'parser' || activePage === 'format' ? 'Modbus 协议工具' : '通用工具' }}</p><h1>{{ page.title }}</h1><p>{{ page.description }}</p></div><span v-if="isPlaceholderPage" class="stage-tag">基础界面</span></div>
+        <div v-if="isPlaceholderPage" class="stage-notice">当前页面为基础框架。“报文生成”的 Modbus RTU、“校验计算”和“数据转换”已可使用，报文解析及格式转换尚未接入。</div>
         <KeepAlive><component :is="views[activePage]" /></KeepAlive>
       </main>
     </div>

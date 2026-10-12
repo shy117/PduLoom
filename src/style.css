@@ -98,3 +98,46 @@ main { padding: 24px; }
 .converter-table td code { white-space: nowrap; }
 .converter-copy-status { margin-top: 16px; }
 @media (max-width: 640px) { .converter-layout .input-pair { grid-template-columns: 1fr; } }
+
+.builder-layout > * { min-width: 0; }
+.builder-list-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13px; }
+.builder-list-heading .secondary-button { margin: 0; display: flex; align-items: center; gap: 6px; }
+.builder-address-field { display: flex; align-items: end; gap: 8px; min-width: 0; }
+.builder-address-field > label:not(.builder-radix-toggle) { flex: 1; min-width: 0; }
+.builder-radix-toggle { flex-direction: row; align-items: center; gap: 6px; flex-shrink: 0; min-height: 42px; white-space: nowrap; }
+.builder-radix-toggle input { width: 15px; height: 15px; padding: 0; accent-color: var(--accent); }
+.builder-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; }
+.builder-register-table { width: 100%; min-width: 600px; border-collapse: collapse; text-align: left; font-size: 12px; }
+.builder-register-table th, .builder-register-table td { padding: 10px 8px; border-bottom: 1px solid var(--border); }
+.builder-register-table th { color: var(--muted); font-weight: 500; white-space: nowrap; background: var(--background); }
+.builder-register-table td:first-child { white-space: nowrap; }
+.builder-register-table td:nth-child(2) { min-width: 110px; }
+.builder-register-table td:nth-child(3) { min-width: 130px; }
+.builder-register-table td:nth-child(4) { min-width: 120px; }
+.builder-register-table tr:last-child td { border-bottom: 0; }
+.builder-register-table .delete-rule-button { white-space: nowrap; }
+.builder-state-table { width: 100%; min-width: 340px; border-collapse: collapse; text-align: left; font-size: 12px; }
+.builder-state-table th, .builder-state-table td { padding: 10px 8px; border-bottom: 1px solid var(--border); }
+.builder-state-table th { background: var(--background); color: var(--muted); font-weight: 500; white-space: nowrap; }
+.builder-state-table td:first-child, .builder-state-table .delete-rule-button { white-space: nowrap; }
+.builder-state-table tr:last-child td { border-bottom: 0; }
+.builder-coil-panel { padding: 4px; min-width: 0; }
+.builder-coil-grid { min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.builder-coil-heading, .builder-coil-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+.builder-coil-heading { color: var(--muted); font-size: 12px; }
+.builder-coil-buttons { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; min-width: 0; }
+.builder-coil-button { min-width: 0; height: 40px; padding: 0; border: 1px solid var(--border); border-radius: 5px; background: var(--background); color: var(--text); font-family: Consolas, monospace; font-size: 12px; }
+.builder-coil-button.active { background: var(--accent); border-color: var(--accent); color: var(--surface); font-weight: 600; }
+.builder-coil-data { display: grid; grid-template-columns: 3ch 8ch; gap: 10px; text-align: right; font-family: Consolas, monospace; font-size: 12px; white-space: nowrap; }
+.builder-coil-data code { font-size: inherit; }
+.builder-result-table-wrap { margin-top: 8px; }
+.builder-structure-table, .builder-data-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 12px; }
+.builder-structure-table { min-width: 380px; table-layout: fixed; }
+.builder-data-table { min-width: 520px; }
+.builder-structure-table th, .builder-structure-table td, .builder-data-table th, .builder-data-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; overflow-wrap: anywhere; }
+.builder-structure-table th, .builder-data-table th { background: var(--background); color: var(--muted); font-weight: 500; }
+.builder-structure-table th:first-child { width: 25%; }
+.builder-structure-table th:nth-child(2) { width: 40%; }
+.builder-structure-table tr:last-child td, .builder-data-table tr:last-child td { border-bottom: 0; }
+.builder-data-table td:first-child, .builder-data-table td:nth-child(2), .builder-data-table td:nth-child(3) { white-space: nowrap; }
+@media (max-width: 640px) { .builder-layout .input-pair { grid-template-columns: 1fr; }.builder-list-heading { flex-wrap: wrap; } }
