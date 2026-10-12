@@ -37,7 +37,7 @@ applyTheme();
         <p class="nav-group general-group">通用工具</p>
         <button v-for="item in pages.slice(3)" :key="item.id" class="nav-button" :class="{ active: activePage === item.id }" :aria-label="item.title" :title="sidebarExpanded ? undefined : item.title" :aria-current="activePage === item.id ? 'page' : undefined" @click="activePage = item.id"><component :is="icons[item.id]" :size="18" /><span class="nav-label">{{ item.title }}</span></button>
       </nav>
-      <div class="sidebar-footer"><span class="status-dot"></span>本地计算 · 无需账号<p>v0.1.0 · 基础框架</p></div>
+      <div class="sidebar-footer"><span class="status-dot"></span>本地计算<p>v0.1.0 · 基础框架</p></div>
     </aside>
     <div class="main-shell">
       <header class="topbar"><div class="topbar-brand"><strong>PduLoom</strong><span class="topbar-subtitle">Protocol Frame Builder &amp; Analyzer</span></div><button class="theme-button" :aria-label="theme === 'light' ? '切换深色主题' : '切换浅色主题'" @click="changeTheme"><Moon v-if="theme === 'light'" :size="18" /><Sun v-else :size="18" /><span>{{ theme === 'light' ? '深色主题' : '浅色主题' }}</span></button></header>
