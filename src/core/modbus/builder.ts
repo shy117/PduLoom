@@ -70,8 +70,8 @@ export function encodeRegisterItems(items: readonly RegisterItem[]): { bytes: nu
   return { bytes, parts, quantity: bytes.length / 2 };
 }
 
-/** 共用串行协议业务结构：地址与 PDU，不包含校验及字符封装。 */
-export function buildSerialBody(input: FrameInput): BuiltFrame {
+/** 共用业务结构：设备标识与 PDU，传输格式决定设备标识规则。 */
+export function buildModbusBody(input: FrameInput, transport: 'serial' | 'tcp' = 'serial'): BuiltFrame {
   if (!functionCodes.includes(input.functionCode)) {
     throw new Error('不支持的功能码');
   }
@@ -79,7 +79,7 @@ export function buildSerialBody(input: FrameInput): BuiltFrame {
     throw new Error('不支持的报文类型');
   }
   const broadcastAllowed = input.frameType === 'request' && [5, 6, 15, 16].includes(input.functionCode);
-  integer(input.unitId, '从站地址', broadcastAllowed ? 0 : 1, 247);
+  integer(input.unitId, transport === 'tcp' ? '单元标识' : '从站地址', transport === 'tcp' ? 0 : broadcastAllowed ? 0 : 1, transport === 'tcp' ? 255 : 247);
   const bytes: number[] = [];
   const fields: FrameField[] = [];
   let quantity: number | undefined;
@@ -87,7 +87,7 @@ export function buildSerialBody(input: FrameInput): BuiltFrame {
     fields.push({ name, offset: bytes.length, bytes: data, description });
     bytes.push(...data);
   };
-  add('从站地址', [input.unitId], input.unitId === 0 ? '广播写入，不返回响应' : String(input.unitId));
+  add(transport === 'tcp' ? '单元标识' : '从站地址', [input.unitId], transport === 'serial' && input.unitId === 0 ? '广播写入，不返回响应' : String(input.unitId));
   add('功能码', [input.functionCode | (input.frameType === 'exception' ? 0x80 : 0)]);
   const addAddressQuantity = (address: number, count: number, max: number, name: string) => {
     integer(count, name, 1, max);
@@ -180,6 +180,9 @@ export function buildSerialBody(input: FrameInput): BuiltFrame {
   const pdu = bytes.slice(1);
   return { bytes, pdu, fields, quantity };
 }
+
+/** 保留 RTU / ASCII 共用的串行入口。 */
+export function buildSerialBody(input: FrameInput): BuiltFrame { return buildModbusBody(input, 'serial'); }
 
 /** RTU 封装固定使用低字节在前的 CRC。 */
 export function buildRtuFrame(input: FrameInput): BuiltFrame {

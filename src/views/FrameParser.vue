@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
+import { parseTcpFrame, type ParsedTcpFrame } from '../core/modbus/tcp';
 import { normalizeAsciiTextInput, parseAsciiFrame, type ParsedAsciiFrame } from '../core/modbus/ascii';
 import { Plus, Trash2 } from 'lucide-vue-next';
 import ToolCard from '../components/ToolCard.vue';
@@ -10,9 +11,9 @@ import type { FrameType } from '../core/modbus/builder';
 type Rule = ParseRule & { id: number };
 const rules = ref<Rule[]>([]);
 const rawFrame = ref('');
-const transport = ref<'rtu' | 'ascii'>('rtu');
+const transport = ref<'rtu' | 'ascii' | 'tcp'>('rtu');
 const frameType = ref<FrameType | 'auto'>('auto');
-const result = ref<ParsedFrame | ParsedAsciiFrame>();
+const result = ref<ParsedFrame | ParsedAsciiFrame | ParsedTcpFrame>();
 const error = ref('');
 const selected = ref<{ offset: number; length: number }>();
 let nextId = 1;
@@ -27,7 +28,7 @@ function parse(completeEnding = false) {
   selected.value = undefined;
   result.value = undefined;
   error.value = '';
-  try { result.value = transport.value === 'ascii' ? parseAsciiFrame(normalizeAsciiTextInput(rawFrame.value), frameType.value, rules.value) : parseRtuFrame(rawFrame.value, frameType.value, rules.value); }
+  try { result.value = transport.value === 'tcp' ? parseTcpFrame(rawFrame.value, frameType.value, rules.value) : transport.value === 'ascii' ? parseAsciiFrame(normalizeAsciiTextInput(rawFrame.value), frameType.value, rules.value) : parseRtuFrame(rawFrame.value, frameType.value, rules.value); }
   catch (cause) { error.value = cause instanceof Error ? cause.message : '解析失败'; }
 }
 function clear() { rawFrame.value = ''; result.value = undefined; error.value = ''; selected.value = undefined; }
@@ -36,10 +37,10 @@ function activeByte(index: number) { return selected.value && index >= selected.
 </script>
 <template>
   <div class="parser-layout form-stack">
-    <ToolCard title="原始报文" :subtitle="transport === 'ascii' ? '输入单条 ASCII 文本，以冒号开始、CRLF 结束，包含 LRC' : '输入单条完整 RTU 报文，包含末尾两个 CRC 字节'">
+    <ToolCard title="原始报文" :subtitle="transport === 'ascii' ? '输入单条 ASCII 文本，以冒号开始、CRLF 结束，包含 LRC' : transport === 'tcp' ? '输入单条完整 TCP 报文，包含 MBAP 头，不含 CRC / LRC' : '输入单条完整 RTU 报文，包含末尾两个 CRC 字节'">
       <div class="form-stack">
         <div class="input-pair">
-          <label>传输格式<select v-model="transport"><option value="rtu">Modbus RTU</option><option value="ascii">Modbus ASCII</option><option disabled>Modbus TCP（待实现）</option></select></label>
+          <label>传输格式<select v-model="transport"><option value="rtu">Modbus RTU</option><option value="ascii">Modbus ASCII</option><option value="tcp">Modbus TCP</option></select></label>
           <label>报文类型<select v-model="frameType"><option value="auto">自动识别</option><option value="request">请求帧</option><option value="response">正常响应帧</option><option value="exception">异常响应帧</option></select></label>
         </div>
         <label>完整报文<textarea v-model="rawFrame" rows="3" :placeholder="transport === 'ascii' ? ':010300000002FA（末尾需 CRLF）' : '支持连续 HEX 或空格、换行分隔的完整字节'" /></label>
@@ -48,7 +49,7 @@ function activeByte(index: number) { return selected.value && index >= selected.
         <p v-if="error" class="checksum-error" role="alert">{{ error }}</p>
       </div>
     </ToolCard>
-    <ToolCard title="解析规则配置" subtitle="位置为解码后完整报文字节偏移，从站地址为 0；ASCII 不计冒号和结束符">
+    <ToolCard title="解析规则配置" :subtitle="transport === 'tcp' ? '位置为完整报文字节偏移：单元标识为 6，功能码为 7' : '位置为解码后完整报文字节偏移，从站地址为 0；ASCII 不计冒号和结束符'">
       <div class="form-stack">
         <div class="builder-list-heading"><span>解析规则 · {{ rules.length }} 项</span><button type="button" class="secondary-button" @click="addRule"><Plus :size="16" />添加规则</button></div>
         <p v-if="rules.length === 0" class="rules-empty">暂无规则，仍可解析标准协议字段。</p>
@@ -70,9 +71,9 @@ function activeByte(index: number) { return selected.value && index >= selected.
       <div v-if="!result" class="empty-state">暂无解析结果</div>
       <div v-else class="form-stack">
         <div class="parser-summary">
-          <span>长度：{{ result.bytes.length }} 字节</span><span>从站地址：{{ result.unitId }}</span><span>功能码：{{ hex([result.functionCode]) }}</span>
+          <span>长度：{{ result.bytes.length }} 字节</span><span>{{ 'transactionId' in result ? '单元标识' : '从站地址' }}：{{ result.unitId }}</span><span v-if="'transactionId' in result">事务标识：{{ result.transactionId }}</span><span>功能码：{{ hex([result.functionCode]) }}</span>
           <span>类型：{{ result.warnings.some(message => message.includes('无法确定方向')) ? '请求或正常响应（方向不确定）' : result.payload ? typeNames[result.payload.frameType] : '未确定' }}</span>
-          <span :class="result.checksum.valid ? 'checksum-success' : 'checksum-error'">{{ result.checksum.algorithm }}：{{ result.checksum.valid ? '通过' : '失败' }}；收到 {{ crcHex(result.checksum.received, result.checksum.algorithm === 'LRC' ? 2 : 4) }} / 计算 {{ crcHex(result.checksum.calculated, result.checksum.algorithm === 'LRC' ? 2 : 4) }}</span>
+          <span v-if="result.checksum" :class="result.checksum.valid ? 'checksum-success' : 'checksum-error'">{{ result.checksum.algorithm }}：{{ result.checksum.valid ? '通过' : '失败' }}；收到 {{ crcHex(result.checksum.received, result.checksum.algorithm === 'LRC' ? 2 : 4) }} / 计算 {{ crcHex(result.checksum.calculated, result.checksum.algorithm === 'LRC' ? 2 : 4) }}</span>
           <span :class="result.errors.length ? 'checksum-error' : ''">协议结构：{{ result.errors.length ? '不符合' : result.supported ? '符合' : '详细结构未检查' }}</span>
         </div>
         <div v-if="result.errors.length" class="checksum-error" role="alert"><p v-for="message in result.errors" :key="message">{{ message }}</p></div>

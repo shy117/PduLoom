@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { Copy, Plus, Trash2 } from 'lucide-vue-next';
 import ToolCard from '../components/ToolCard.vue';
+import { buildTcpFrame } from '../core/modbus/tcp';
 import { buildAsciiFrame, type BuiltAsciiFrame } from '../core/modbus/ascii';
 import { dataTypes, getByteLength, getByteOrders, decodeDataValue, formatDataValue } from '../core/data-conversion';
 import { buildRtuFrame, exceptionCodes, type FrameInput, type FrameType, type FunctionCode, type RegisterItem, type BuiltFrame } from '../core/modbus/builder';
@@ -12,10 +13,11 @@ const commands: { code: FunctionCode; name: string }[] = [
   { code: 5, name: '写单个线圈' }, { code: 6, name: '写单个寄存器' },
   { code: 15, name: '写多个线圈' }, { code: 16, name: '写多个寄存器' },
 ];
-const transport = ref<'rtu' | 'ascii'>('rtu');
+const transport = ref<'rtu' | 'ascii' | 'tcp'>('rtu');
 const frameType = ref<FrameType>('request');
 const functionCode = ref<FunctionCode>(3);
 const unitId = ref('1');
+const transactionId = ref('1');
 const address = ref('0');
 const addressRadix = ref<10 | 16>(10);
 const quantity = ref('2');
@@ -64,7 +66,7 @@ const hasQuantity = computed(() => !isException.value && ((isRequest.value && fu
 const registerCount = computed(() => items.value.reduce((sum, item) => sum + getByteLength(item.type) / 2, 0));
 const registerLimit = computed(() => isRequest.value ? 123 : 125);
 const quantityLimit = computed(() => [1, 2].includes(functionCode.value) ? 2000 : functionCode.value === 15 ? 1968 : functionCode.value === 16 ? 123 : 125);
-const broadcastAllowed = computed(() => isRequest.value && [5, 6, 15, 16].includes(functionCode.value));
+const broadcastAllowed = computed(() => transport.value !== 'tcp' && isRequest.value && [5, 6, 15, 16].includes(functionCode.value));
 const hex = (value: number, width = 2) => value.toString(16).toUpperCase().padStart(width, '0');
 const bytesText = (data: readonly number[]) => data.map(byte => hex(byte)).join(' ');
 const parsedAddress = computed(() => {
@@ -124,7 +126,7 @@ const dataDetails = computed(() => {
     return { ...row, bytes: field.bytes, value: formatDataValue(decodeDataValue(field.bytes, row.item.type, row.item.order)), offset: field.offset };
   });
 });
-watch([transport, frameType, functionCode, unitId, address, addressRadix, quantity, singleValue, singleState, exceptionCode, items, coilQuantity, coilStates], () => {
+watch([transport, transactionId, frameType, functionCode, unitId, address, addressRadix, quantity, singleValue, singleState, exceptionCode, items, coilQuantity, coilStates], () => {
   result.value = null;
   error.value = '';
   copyMessage.value = '';
@@ -169,7 +171,7 @@ function changeAddressRadix(event: Event) {
   }
 }
 function configuration(): FrameInput {
-  const base = { unitId: decimal(unitId.value, '从站地址') };
+  const base = { unitId: decimal(unitId.value, transport.value === 'tcp' ? '单元标识' : '从站地址') };
   const code = functionCode.value;
   if (frameType.value === 'exception') {
     return { ...base, frameType: 'exception', functionCode: code, exceptionCode: exceptionCode.value };
@@ -209,13 +211,13 @@ function run() {
   error.value = '';
   copyMessage.value = '';
   try {
-    result.value = transport.value === 'ascii' ? buildAsciiFrame(configuration()) : buildRtuFrame(configuration());
+    result.value = transport.value === 'tcp' ? buildTcpFrame({ ...configuration(), transactionId: decimal(transactionId.value, '事务标识') }) : transport.value === 'ascii' ? buildAsciiFrame(configuration()) : buildRtuFrame(configuration());
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : '生成失败，请检查参数';
   }
 }
 function reset() {
-  unitId.value = '1'; addressRadix.value = 10; address.value = '0'; quantity.value = '2'; singleValue.value = '0';
+  unitId.value = '1'; transactionId.value = '1'; addressRadix.value = 10; address.value = '0'; quantity.value = '2'; singleValue.value = '0';
   singleState.value = false; exceptionCode.value = 2;
   items.value = [newItem()];
   coilQuantity.value = '1'; coilStates.value = [false];
@@ -236,16 +238,17 @@ async function copyFrame() {
 
 <template>
   <div class="workspace-grid builder-layout">
-    <ToolCard title="参数配置" :subtitle="transport === 'ascii' ? 'Modbus ASCII · 本地组帧' : 'Modbus RTU · 本地组帧'">
+    <ToolCard title="参数配置" :subtitle="'Modbus ' + transport.toUpperCase() + ' · 本地组帧'">
       <form class="form-stack" @submit.prevent="run">
         <div class="input-pair">
-          <label>传输格式<select v-model="transport"><option value="rtu">Modbus RTU</option><option value="ascii">Modbus ASCII</option><option disabled>Modbus TCP（待实现）</option></select></label>
+          <label>传输格式<select v-model="transport"><option value="rtu">Modbus RTU</option><option value="ascii">Modbus ASCII</option><option value="tcp">Modbus TCP</option></select></label>
           <label>报文类型<select v-model="frameType"><option value="request">请求帧</option><option value="response">正常响应帧</option><option value="exception">异常响应帧</option></select></label>
         </div>
         <div class="input-pair">
-          <label>从站地址（十进制）<input v-model="unitId" inputmode="numeric" :placeholder="broadcastAllowed ? '0～247' : '1～247'" /></label>
+          <label>{{ transport === 'tcp' ? '单元标识' : '从站地址' }}（十进制）<input v-model="unitId" inputmode="numeric" :placeholder="transport === 'tcp' ? '0～255' : broadcastAllowed ? '0～247' : '1～247'" /></label>
           <label>{{ isException ? '原始功能码' : '功能码' }}<select v-model="functionCode"><option v-for="command in commands" :key="command.code" :value="command.code">{{ hex(command.code) }} · {{ command.name }}</option></select></label>
         </div>
+        <div v-if="transport === 'tcp'" class="input-pair"><label>事务标识（十进制）<input v-model="transactionId" inputmode="numeric" placeholder="0～65535" /></label></div>
         <div v-if="hasAddress || hasQuantity || coilSelector" class="input-pair">
           <div v-if="hasAddress" class="builder-address-field">
             <label>{{ functionCode === 5 || functionCode === 6 ? '协议地址' : '起始协议地址' }}<input v-model="address" :inputmode="addressRadix === 10 ? 'numeric' : 'text'" :placeholder="addressRadix === 10 ? '0～65535' : '0000～FFFF'" /></label>

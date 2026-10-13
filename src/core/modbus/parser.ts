@@ -118,8 +118,8 @@ function parsePayload(bytes: readonly number[], frameType: FrameType): ParsedPay
   return result;
 }
 
-/** 共用串行业务解析，不包含校验字节，字段偏移从从站地址开始。 */
-export function parseSerialBody(bytes: number[], frameType: FrameType | 'auto' = 'auto'): ParsedBody {
+/** 共用业务解析，不包含传输头及校验，偏移从设备标识开始。 */
+export function parseModbusBody(bytes: number[], frameType: FrameType | 'auto' = 'auto', transport: 'serial' | 'tcp' = 'serial'): ParsedBody {
   if (!['auto', 'request', 'response', 'exception'].includes(frameType)) { throw new Error('不支持的报文类型'); }
   if (bytes.length < 2) { throw new Error('业务数据至少需要从站地址和功能码'); }
   const unitId = bytes[0]!;
@@ -128,13 +128,13 @@ export function parseSerialBody(bytes: number[], frameType: FrameType | 'auto' =
   const supported = functionCodes.some(code => code === baseCode);
   const functionNames: Record<number, string> = { 1: '读取线圈', 2: '读取离散输入', 3: '读取保持寄存器', 4: '读取输入寄存器', 5: '写单个线圈', 6: '写单个寄存器', 15: '写多个线圈', 16: '写多个寄存器' };
   const fields: FrameField[] = [
-    { name: '从站地址', offset: 0, bytes: bytes.slice(0, 1), description: unitId === 0 ? '广播地址' : String(unitId) },
+    { name: transport === 'tcp' ? '单元标识' : '从站地址', offset: 0, bytes: bytes.slice(0, 1), description: transport === 'serial' && unitId === 0 ? '广播地址' : String(unitId) },
     { name: '功能码', offset: 1, bytes: bytes.slice(1, 2), description: functionCode & 0x80 ? `异常响应，原功能码 ${baseCode.toString(16).toUpperCase().padStart(2, '0')}；${functionNames[baseCode] ?? '未支持的功能'}` : functionNames[baseCode] ?? '未支持的功能' },
   ];
   const result: ParsedBody = { bytes, unitId, functionCode, supported, candidates: [], fields, errors: [], warnings: [], rules: [] };
-  if (unitId > 247) { result.errors.push('从站地址必须为 0～247'); }
+  if (transport === 'serial' && unitId > 247) { result.errors.push('从站地址必须为 0～247'); }
   if (baseCode === 0) { result.errors.push('功能码 00 非法'); }
-  const broadcastCheck = (type: FrameType) => unitId === 0 && (type !== 'request' || ![5, 6, 15, 16].includes(functionCode));
+  const broadcastCheck = (type: FrameType) => transport === 'serial' && unitId === 0 && (type !== 'request' || ![5, 6, 15, 16].includes(functionCode));
   if (supported) {
     const types: FrameType[] = functionCode & 0x80 ? ['exception'] : ['request', 'response'];
     const parsed = types.map(type => parsePayload(bytes, type));
@@ -148,11 +148,14 @@ export function parseSerialBody(bytes: number[], frameType: FrameType | 'auto' =
       result.warnings.push(...result.payload.warnings);
       fields.push(...result.payload.fields);
       if (broadcastCheck(result.payload.frameType)) { result.errors.push('广播地址仅允许写请求，不允许读取或响应'); }
-    } else if (unitId === 0) { result.errors.push('广播地址仅允许合法的写请求'); }
+    } else if (transport === 'serial' && unitId === 0) { result.errors.push('广播地址仅允许合法的写请求'); }
   } else { result.warnings.push('暂不支持该功能码的详细解析'); }
   if (!result.payload) { fields.push({ name: '原始数据', offset: 2, bytes: bytes.slice(2), description: '未进行详细解析' }); }
   return result;
 }
+
+/** 保留串行入口，TCP 不套用串行广播规则。 */
+export function parseSerialBody(bytes: number[], frameType: FrameType | 'auto' = 'auto'): ParsedBody { return parseModbusBody(bytes, frameType, 'serial'); }
 
 /** RTU 校验与业务结构分别诊断，保留原有 crc 接口。 */
 export function parseRtuFrame(input: string, frameType: FrameType | 'auto' = 'auto', rules: readonly ParseRule[] = []): ParsedFrame {
