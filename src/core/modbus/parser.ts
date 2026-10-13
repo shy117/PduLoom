@@ -141,8 +141,8 @@ export function parseModbusBody(bytes: number[], frameType: FrameType | 'auto' =
     result.candidates = parsed.filter(item => item.errors.length === 0 && !broadcastCheck(item.frameType)).map(item => item.frameType);
     if (frameType !== 'auto') { result.payload = parsePayload(bytes, frameType); }
     else if (result.candidates.length === 1) { result.payload = parsed.find(item => item.frameType === result.candidates[0]); }
-    else if (result.candidates.length > 1) { result.payload = parsed[0]; result.warnings.push('请求与正常响应均符合结构，无法确定方向，请手动选择报文类型'); }
-    else { result.errors.push('报文不符合支持的请求或响应结构，请选择报文类型查看具体原因'); }
+    else if (result.candidates.length > 1) { result.payload = parsed[0]; result.warnings.push('请求与正常响应均符合结构，无法确定方向'); }
+    else { result.errors.push('报文不符合支持的请求或响应结构'); }
     if (result.payload) {
       result.errors.push(...result.payload.errors);
       result.warnings.push(...result.payload.warnings);

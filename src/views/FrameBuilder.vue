@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { Copy, Plus, Trash2 } from 'lucide-vue-next';
+import { Plus, Trash2 } from 'lucide-vue-next';
 import ToolCard from '../components/ToolCard.vue';
+import FrameStructureTable from '../components/FrameStructureTable.vue';
+import CopyButton from '../components/CopyButton.vue';
 import { buildTcpFrame } from '../core/modbus/tcp';
 import { buildAsciiFrame, type BuiltAsciiFrame } from '../core/modbus/ascii';
 import { dataTypes, getByteLength, getByteOrders, decodeDataValue, formatDataValue } from '../core/data-conversion';
@@ -31,7 +33,6 @@ const coilQuantity = ref<string | number>('1');
 const coilStates = ref([false]);
 const result = ref<BuiltFrame | BuiltAsciiFrame | null>(null);
 const error = ref('');
-const copyMessage = ref('');
 const isException = computed(() => frameType.value === 'exception');
 const isRequest = computed(() => frameType.value === 'request');
 const registerList = computed(() => !isException.value && ((functionCode.value === 16 && isRequest.value) || ([3, 4].includes(functionCode.value) && !isRequest.value)));
@@ -129,7 +130,7 @@ const dataDetails = computed(() => {
 watch([transport, transactionId, frameType, functionCode, unitId, address, addressRadix, quantity, singleValue, singleState, exceptionCode, items, coilQuantity, coilStates], () => {
   result.value = null;
   error.value = '';
-  copyMessage.value = '';
+
 }, { deep: true, flush: 'sync' });
 
 function decimal(input: string, name: string): number {
@@ -209,7 +210,7 @@ function configuration(): FrameInput {
 function run() {
   result.value = null;
   error.value = '';
-  copyMessage.value = '';
+
   try {
     result.value = transport.value === 'tcp' ? buildTcpFrame({ ...configuration(), transactionId: decimal(transactionId.value, '事务标识') }) : transport.value === 'ascii' ? buildAsciiFrame(configuration()) : buildRtuFrame(configuration());
   } catch (cause) {
@@ -221,19 +222,9 @@ function reset() {
   singleState.value = false; exceptionCode.value = 2;
   items.value = [newItem()];
   coilQuantity.value = '1'; coilStates.value = [false];
-  result.value = null; error.value = ''; copyMessage.value = '';
+  result.value = null; error.value = '';
 }
-async function copyFrame() {
-  if (!result.value) {
-    return;
-  }
-  try {
-    await navigator.clipboard.writeText('text' in result.value ? result.value.text : bytesText(result.value.bytes));
-    copyMessage.value = '已复制';
-  } catch {
-    copyMessage.value = '复制失败，请选择结果手动复制';
-  }
-}
+
 </script>
 
 <template>
@@ -266,8 +257,8 @@ async function copyFrame() {
           <div class="builder-list-heading"><span>寄存器数据项</span><button type="button" class="secondary-button" :disabled="registerCount >= registerLimit" @click="items.push(newItem())"><Plus :size="16" />添加数据项</button></div>
           <p class="checksum-hint">{{ items.length }} 个数据项 · {{ registerCount }} 个寄存器 · {{ registerCount * 2 }} 个数据字节。</p>
           <p v-if="!items.length" class="rules-empty">暂无数据项，请点击“添加数据项”。</p>
-          <div v-if="items.length" class="builder-table-wrap">
-            <table class="builder-register-table">
+          <div v-if="items.length" class="data-table-wrap">
+            <table class="data-table builder-register-table">
               <thead><tr><th>{{ isRequest ? `协议地址（${addressRadix === 10 ? '十进制' : '十六进制'}）` : '寄存器序号' }}</th><th>数据类型</th><th>字节序</th><th>数值（十进制）</th><th>操作</th></tr></thead>
               <tbody><tr v-for="(row, index) in itemRows" :key="row.item.id">
                 <td :title="`第 ${index + 1} 项，占 ${row.count} 个寄存器`"><code>{{ row.location }}</code></td>
@@ -304,25 +295,13 @@ async function copyFrame() {
     </ToolCard>
     <ToolCard title="报文预览" subtitle="完整报文与字段明细">
       <div v-if="result" class="form-stack" aria-live="polite">
-        <div><div class="result-label result-copy-label">{{ transport === 'ascii' ? '完整报文（ASCII 文本）' : '完整报文（HEX）' }}</div><div class="result-copy-row"><pre class="result-copy-content">{{ 'text' in result ? result.text.replace(/\r\n$/, '<CR><LF>') : bytesText(result.bytes) }}</pre><button class="result-copy-button" aria-label="复制完整报文" @click="copyFrame"><Copy :size="16" />复制</button></div></div>
+        <div><div class="result-label result-copy-label">{{ transport === 'ascii' ? '完整报文（ASCII 文本）' : '完整报文（HEX）' }}</div><div class="result-copy-row"><pre class="result-copy-content">{{ 'text' in result ? result.text.replace(/\r\n$/, '<CR><LF>') : bytesText(result.bytes) }}</pre><CopyButton :text="'text' in result ? result.text : bytesText(result.bytes)" aria-label="复制完整报文" /></div></div>
         <p class="checksum-hint"><template v-if="'text' in result">{{ result.text.length }} 个字符 · 复制包含实际 CRLF · </template>{{ result.bytes.length }} {{ transport === 'ascii' ? '个解码字节' : '字节' }}<span v-if="result.quantity !== undefined"> · {{ result.quantity }} {{ [1, 2, 15].includes(functionCode) ? '个状态' : '个寄存器' }}</span></p>
-        <div>
-          <div class="result-label result-copy-label">报文结构</div>
-          <div class="builder-table-wrap builder-result-table-wrap">
-            <table class="builder-structure-table">
-              <thead><tr><th>字段</th><th>HEX</th><th>含义</th></tr></thead>
-              <tbody><tr v-for="field in structureRows" :key="field.offset">
-                <td :title="`字节偏移：${field.offset}${field.bytes.length > 1 ? `～${field.offset + field.bytes.length - 1}` : ''}（从 0 开始）`">{{ field.name }}</td>
-                <td><code>{{ bytesText(field.bytes) }}</code></td>
-                <td>{{ field.description }}</td>
-              </tr></tbody>
-            </table>
-          </div>
-        </div>
+        <FrameStructureTable :fields="structureRows" />
         <div v-if="dataDetails.length">
           <div class="result-label result-copy-label">数据区明细</div>
-          <div class="builder-table-wrap builder-result-table-wrap">
-            <table class="builder-data-table">
+          <div class="data-table-wrap builder-result-table-wrap">
+            <table class="data-table builder-data-table">
               <thead><tr><th>{{ isRequest ? `协议地址（${addressRadix === 10 ? '十进制' : '十六进制'}）` : '寄存器序号' }}</th><th>数据类型</th><th>字节序</th><th>HEX</th><th>实际数值</th></tr></thead>
               <tbody><tr v-for="row in dataDetails" :key="row.item.id">
                 <td :title="`字节偏移：${row.offset}～${row.offset + row.bytes.length - 1}（从 0 开始）`"><code>{{ row.location }}</code></td>
@@ -333,7 +312,7 @@ async function copyFrame() {
         </div>
       </div>
       <div v-else class="empty-state">暂无报文<p>配置参数后点击“生成报文”；修改参数后清除旧结果。</p></div>
-      <p v-if="copyMessage" role="status" class="checksum-hint converter-copy-status">{{ copyMessage }}</p>
+
     </ToolCard>
   </div>
 </template>

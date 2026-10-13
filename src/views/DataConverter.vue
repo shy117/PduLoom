@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { Copy } from 'lucide-vue-next';
 import ToolCard from '../components/ToolCard.vue';
+import CopyButton from '../components/CopyButton.vue';
 import { parseHexBytes } from '../core/hex';
 import { dataTypes, getByteLength, getByteOrders, encodeDataValue, decodeDataValue, formatDataValue, bytesToRegisters, type DataType, type ByteOrder } from '../core/data-conversion';
 
@@ -11,7 +11,6 @@ const order = ref<ByteOrder>('ABCD');
 const input = ref('');
 const result = ref<{ bytes: number[]; value: string; notice: string } | null>(null);
 const error = ref('');
-const copyMessage = ref('');
 const byteLength = computed(() => getByteLength(type.value));
 const orders = computed(() => getByteOrders(type.value));
 const hex = (value: number, length: number) => value.toString(16).toUpperCase().padStart(length, '0');
@@ -30,7 +29,7 @@ watch(type, () => { order.value = getByteOrders(type.value)[0]; }, { flush: 'syn
 watch([input, type, direction, order], () => {
   result.value = null;
   error.value = '';
-  copyMessage.value = '';
+
 }, { flush: 'sync' });
 
 function run() {
@@ -39,7 +38,7 @@ function run() {
   }
   result.value = null;
   error.value = '';
-  copyMessage.value = '';
+
   try {
     const bytes = direction.value === 'encode'
       ? encodeDataValue(input.value, type.value, order.value) : parseHexBytes(input.value);
@@ -56,14 +55,7 @@ function run() {
   }
 }
 
-async function copy(value: string) {
-  try {
-    await navigator.clipboard.writeText(value);
-    copyMessage.value = '已复制';
-  } catch {
-    copyMessage.value = '复制失败，请选择结果手动复制';
-  }
-}
+
 </script>
 
 <template>
@@ -92,21 +84,21 @@ async function copy(value: string) {
       <div v-if="result" class="form-stack" aria-live="polite">
         <div>
           <div class="result-label result-copy-label">数值（十进制）</div>
-          <div class="result-copy-row"><pre class="result-copy-content">{{ result.value }}</pre><button class="result-copy-button" aria-label="复制数值" @click="copy(result.value)"><Copy :size="16" />复制</button></div>
+          <div class="result-copy-row"><pre class="result-copy-content">{{ result.value }}</pre><CopyButton :text="result.value" aria-label="复制数值" /></div>
         </div>
         <div>
           <div class="result-label result-copy-label"><span>HEX 字节<span class="result-copy-detail"> · {{ order }}</span></span></div>
-          <div class="result-copy-row"><pre class="result-copy-content">{{ hexText }}</pre><button class="result-copy-button" aria-label="复制 HEX 字节" @click="copy(hexText)"><Copy :size="16" />复制</button></div>
+          <div class="result-copy-row"><pre class="result-copy-content">{{ hexText }}</pre><CopyButton :text="hexText" aria-label="复制 HEX 字节" /></div>
         </div>
         <p v-if="result.notice" class="checksum-hint" role="status">{{ result.notice }}</p>
         <div class="result-label">{{ byteLength }} 字节 · {{ registers.length }} 个寄存器</div>
-        <div class="converter-table-wrap">
-          <table class="converter-table"><thead><tr><th>寄存器序号</th><th>HEX 字节</th><th>UINT16 值</th></tr></thead><tbody><tr v-for="(value, index) in registers" :key="index"><td>{{ index + 1 }}</td><td><code>{{ hex(value >> 8, 2) }} {{ hex(value & 255, 2) }}</code></td><td>{{ value }}</td></tr></tbody></table>
+        <div class="data-table-wrap">
+          <table class="data-table converter-table"><thead><tr><th>寄存器序号</th><th>HEX 字节</th><th>UINT16 值</th></tr></thead><tbody><tr v-for="(value, index) in registers" :key="index"><td>{{ index + 1 }}</td><td><code>{{ hex(value >> 8, 2) }} {{ hex(value & 255, 2) }}</code></td><td>{{ value }}</td></tr></tbody></table>
         </div>
         <p class="checksum-hint">按当前字节序每两个字节拆分为一个寄存器，序号从 1 开始，不代表设备地址。UINT16 值是原始字节的解释，不是浮点数分段转换。</p>
       </div>
       <div v-else class="empty-state">暂无转换结果<p>输入数值或 HEX 字节后点击“转换数据”。</p></div>
-      <p v-if="copyMessage" role="status" class="checksum-hint converter-copy-status">{{ copyMessage }}</p>
+
     </ToolCard>
   </div>
 </template>

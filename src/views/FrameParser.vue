@@ -4,15 +4,16 @@ import { parseTcpFrame, type ParsedTcpFrame } from '../core/modbus/tcp';
 import { normalizeAsciiTextInput, parseAsciiFrame, type ParsedAsciiFrame } from '../core/modbus/ascii';
 import { Plus, Trash2 } from 'lucide-vue-next';
 import ToolCard from '../components/ToolCard.vue';
+import FrameStructureTable from '../components/FrameStructureTable.vue';
 import { dataTypes, getByteOrders } from '../core/data-conversion';
 import { parseRtuFrame, type ParseRule, type ParsedFrame } from '../core/modbus/parser';
-import type { FrameType } from '../core/modbus/builder';
+
 
 type Rule = ParseRule & { id: number };
 const rules = ref<Rule[]>([]);
 const rawFrame = ref('');
 const transport = ref<'rtu' | 'ascii' | 'tcp'>('rtu');
-const frameType = ref<FrameType | 'auto'>('auto');
+
 const result = ref<ParsedFrame | ParsedAsciiFrame | ParsedTcpFrame>();
 const error = ref('');
 const selected = ref<{ offset: number; length: number }>();
@@ -20,7 +21,7 @@ let nextId = 1;
 const hex = (bytes: readonly number[]) => bytes.map(byte => byte.toString(16).toUpperCase().padStart(2, '0')).join(' ');
 const crcHex = (crc: number, width: number) => crc.toString(16).toUpperCase().padStart(width, '0');
 const typeNames = { request: '请求帧', response: '正常响应帧', exception: '异常响应帧' };
-watch([rawFrame, transport, frameType, rules], () => { result.value = undefined; error.value = ''; selected.value = undefined; }, { deep: true, flush: 'sync' });
+watch([rawFrame, transport, rules], () => { result.value = undefined; error.value = ''; selected.value = undefined; }, { deep: true, flush: 'sync' });
 function addRule() { rules.value.push({ id: nextId++, name: '', offset: 0, type: 'UINT16', order: 'AB' }); }
 function changeType(rule: Rule) { rule.order = getByteOrders(rule.type)[0]!; }
 function parse(completeEnding = false) {
@@ -28,7 +29,7 @@ function parse(completeEnding = false) {
   selected.value = undefined;
   result.value = undefined;
   error.value = '';
-  try { result.value = transport.value === 'tcp' ? parseTcpFrame(rawFrame.value, frameType.value, rules.value) : transport.value === 'ascii' ? parseAsciiFrame(normalizeAsciiTextInput(rawFrame.value), frameType.value, rules.value) : parseRtuFrame(rawFrame.value, frameType.value, rules.value); }
+  try { result.value = transport.value === 'tcp' ? parseTcpFrame(rawFrame.value, 'auto', rules.value) : transport.value === 'ascii' ? parseAsciiFrame(normalizeAsciiTextInput(rawFrame.value), 'auto', rules.value) : parseRtuFrame(rawFrame.value, 'auto', rules.value); }
   catch (cause) { error.value = cause instanceof Error ? cause.message : '解析失败'; }
 }
 function clear() { rawFrame.value = ''; result.value = undefined; error.value = ''; selected.value = undefined; }
@@ -41,7 +42,7 @@ function activeByte(index: number) { return selected.value && index >= selected.
       <div class="form-stack">
         <div class="input-pair">
           <label>传输格式<select v-model="transport"><option value="rtu">Modbus RTU</option><option value="ascii">Modbus ASCII</option><option value="tcp">Modbus TCP</option></select></label>
-          <label>报文类型<select v-model="frameType"><option value="auto">自动识别</option><option value="request">请求帧</option><option value="response">正常响应帧</option><option value="exception">异常响应帧</option></select></label>
+
         </div>
         <label>完整报文<textarea v-model="rawFrame" rows="3" :placeholder="transport === 'ascii' ? ':010300000002FA（末尾需 CRLF）' : '支持连续 HEX 或空格、换行分隔的完整字节'" /></label>
         <p v-if="transport === 'ascii'" class="checksum-hint">文本框末尾的单个换行按 CRLF 处理；缺少结束符时可选择补齐后解析。</p>
@@ -53,8 +54,8 @@ function activeByte(index: number) { return selected.value && index >= selected.
       <div class="form-stack">
         <div class="builder-list-heading"><span>解析规则 · {{ rules.length }} 项</span><button type="button" class="secondary-button" @click="addRule"><Plus :size="16" />添加规则</button></div>
         <p v-if="rules.length === 0" class="rules-empty">暂无规则，仍可解析标准协议字段。</p>
-        <div v-else class="builder-table-wrap">
-          <table class="builder-register-table parser-rule-table">
+        <div v-else class="data-table-wrap">
+          <table class="data-table builder-register-table parser-rule-table">
             <thead><tr><th>字段名称</th><th>位置（从 0 开始）</th><th>数据类型</th><th>字节序</th><th>操作</th></tr></thead>
             <tbody><tr v-for="(rule, index) in rules" :key="rule.id">
               <td><input v-model="rule.name" :aria-label="`规则 ${index + 1} 字段名称`" placeholder="例如：温度" /></td>
@@ -81,11 +82,9 @@ function activeByte(index: number) { return selected.value && index >= selected.
         <div v-if="'text' in result" class="parser-ascii-text" aria-label="ASCII 原始文本"><span>:</span><button v-for="(_, index) in result.bytes" :key="index" :class="{ active: activeByte(index) }" :title="`解码字节偏移 ${index}；文本偏移 ${1 + index * 2}`" @click="highlight(index, 1)">{{ result.text.slice(1 + index * 2, 3 + index * 2) }}</button><span>{{ result.ending === '\r\n' ? '<CR><LF>' : result.ending === '\n' ? '<LF>' : result.ending === '\r' ? '<CR>' : '（缺少结束符）' }}</span></div><div class="parser-bytes" aria-label="解码后的报文字节">
           <button v-for="(byte, index) in result.bytes" :key="index" :title="`字节偏移 ${index}`" :aria-label="`字节偏移 ${index}：${hex([byte])}`" :class="{ active: activeByte(index) }" @click="highlight(index, 1)">{{ hex([byte]) }}</button>
         </div>
-        <div class="converter-table-wrap"><table class="converter-table parser-table"><thead><tr><th>字段</th><th>偏移</th><th>长度</th><th>HEX</th><th>含义</th></tr></thead><tbody>
-          <tr v-for="field in result.fields" :key="field.offset" :class="{ 'parser-selected': selected && field.offset < selected.offset + selected.length && field.offset + field.bytes.length > selected.offset }"><td><button class="parser-field-button" @click="highlight(field.offset, field.bytes.length)">{{ field.name }}</button></td><td>{{ field.offset }}</td><td>{{ field.bytes.length }}</td><td>{{ hex(field.bytes) }}</td><td>{{ field.description }}</td></tr>
-        </tbody></table></div>
+        <FrameStructureTable :fields="result.fields" interactive :selected="selected" @select="highlight" />
         <template v-if="result.payload?.registers.length">
-          <h3>寄存器数据（UINT16）</h3><div class="converter-table-wrap"><table class="converter-table"><thead><tr><th>序号</th><th>协议地址</th><th>偏移</th><th>HEX</th><th>数值</th></tr></thead><tbody>
+          <h3>寄存器数据（UINT16）</h3><div class="data-table-wrap"><table class="data-table converter-table"><thead><tr><th>序号</th><th>协议地址</th><th>偏移</th><th>HEX</th><th>数值</th></tr></thead><tbody>
             <tr v-for="(item, index) in result.payload.registers" :key="item.offset"><td>{{ index + 1 }}</td><td>{{ item.address ?? '未提供' }}</td><td>{{ item.offset }}</td><td><button class="parser-field-button" @click="highlight(item.offset, 2)">{{ hex(result.bytes.slice(item.offset, item.offset + 2)) }}</button></td><td>{{ item.value }}</td></tr>
           </tbody></table></div>
         </template>
@@ -93,7 +92,7 @@ function activeByte(index: number) { return selected.value && index >= selected.
           <h3>状态数据（低位优先）</h3><div class="parser-states"><button v-for="(item, index) in result.payload.states" :key="index" :class="{ active: item.value }" :title="`偏移 ${item.offset}，位 ${item.bit}，协议地址 ${item.address ?? '未提供'}`" @click="highlight(item.offset, 1)">{{ index + 1 }}：{{ item.value ? '开' : '关' }}</button></div>
         </template>
         <template v-if="result.rules.length">
-          <h3>自定义规则结果</h3><div class="converter-table-wrap"><table class="converter-table"><thead><tr><th>名称</th><th>偏移</th><th>类型</th><th>字节序</th><th>HEX</th><th>数值 / 错误</th></tr></thead><tbody>
+          <h3>自定义规则结果</h3><div class="data-table-wrap"><table class="data-table converter-table"><thead><tr><th>名称</th><th>偏移</th><th>类型</th><th>字节序</th><th>HEX</th><th>数值 / 错误</th></tr></thead><tbody>
             <tr v-for="(rule, index) in result.rules" :key="index"><td>{{ rule.name || `规则 ${index + 1}` }}</td><td>{{ rule.offset }}</td><td>{{ rule.type }}</td><td>{{ rule.order }}</td><td><button class="parser-field-button" :disabled="!rule.bytes.length" @click="highlight(rule.offset, rule.bytes.length)">{{ hex(rule.bytes) }}</button></td><td :class="{ 'checksum-error': rule.error }">{{ rule.error ?? rule.value }}</td></tr>
           </tbody></table></div>
         </template>

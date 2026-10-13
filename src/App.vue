@@ -15,7 +15,7 @@ const sidebarExpanded = ref(true);
 const icons = { format: Repeat, builder: FileInput, parser: ScanLine, checksum: ShieldCheck, converter: ArrowLeftRight };
 const views = { format: FormatConverter, builder: FrameBuilder, parser: FrameParser, checksum: Checksum, converter: DataConverter };
 const page = computed(() => pages.find(item => item.id === activePage.value)!);
-const isPlaceholderPage = computed(() => activePage.value === 'format');
+
 let savedTheme: string | null = null;
 try { savedTheme = localStorage.getItem('pduloom-theme'); } catch { /* 存储受限时使用系统主题。 */ }
 const theme = ref(resolveTheme(savedTheme, window.matchMedia('(prefers-color-scheme: dark)').matches));
@@ -33,7 +33,7 @@ applyTheme();
     <aside id="app-sidebar" class="sidebar" :class="{ 'sidebar-collapsed': !sidebarExpanded }">
       <div class="sidebar-heading"><div class="brand"><img :src="appLogo" class="app-logo" alt="" width="32" height="32" /><strong>PduLoom</strong></div><button class="sidebar-toggle" :aria-label="sidebarExpanded ? '收起侧边栏' : '展开侧边栏'" :title="sidebarExpanded ? '收起侧边栏' : '展开侧边栏'" :aria-expanded="sidebarExpanded" aria-controls="app-sidebar" @click="sidebarExpanded = !sidebarExpanded"><PanelLeftClose v-if="sidebarExpanded" :size="20" /><PanelLeftOpen v-else :size="20" /></button></div>
       <nav aria-label="功能导航">
-        <p class="nav-group">协议工具</p><div class="protocol-heading">Modbus <span class="badge">首版</span></div>
+        <p class="nav-group">协议工具</p><div class="protocol-heading">Modbus</div>
         <button v-for="item in pages.slice(0, 3)" :key="item.id" class="nav-button" :class="{ active: activePage === item.id }" :aria-label="item.title" :title="sidebarExpanded ? undefined : item.title" :aria-current="activePage === item.id ? 'page' : undefined" @click="activePage = item.id"><component :is="icons[item.id]" :size="18" /><span class="nav-label">{{ item.title }}</span><ChevronRight v-if="activePage === item.id" :size="15" class="nav-arrow" /></button>
         <div class="planned-item">HJ 212 <span>计划支持</span></div><div class="planned-item">自定义协议 <span>计划支持</span></div>
         <p class="nav-group general-group">通用工具</p>
@@ -43,8 +43,8 @@ applyTheme();
     </aside>
     <div class="main-shell">
       <header class="topbar"><div class="topbar-brand"><div class="brand"><img :src="appLogo" class="app-logo" alt="" width="32" height="32" /><strong>PduLoom</strong></div><span class="topbar-subtitle">多协议报文生成与解析工具</span></div><button class="theme-button" :aria-label="theme === 'light' ? '切换深色主题' : '切换浅色主题'" @click="changeTheme"><Moon v-if="theme === 'light'" :size="18" /><Sun v-else :size="18" /><span>{{ theme === 'light' ? '深色主题' : '浅色主题' }}</span></button></header>
-      <main><div class="page-heading"><div><p class="eyebrow">{{ activePage === 'builder' || activePage === 'parser' || activePage === 'format' ? 'Modbus 协议工具' : '通用工具' }}</p><h1>{{ page.title }}</h1><p>{{ page.description }}</p></div><span v-if="isPlaceholderPage" class="stage-tag">基础界面</span></div>
-        <div v-if="isPlaceholderPage" class="stage-notice">格式转换尚未接入。Modbus RTU / ASCII / TCP 报文生成与解析、校验计算和数据转换已可使用。</div>
+      <main><div class="page-heading"><div><p class="eyebrow">{{ activePage === 'builder' || activePage === 'parser' || activePage === 'format' ? 'Modbus 协议工具' : '通用工具' }}</p><h1>{{ page.title }}</h1><p>{{ page.description }}</p></div></div>
+
         <KeepAlive><component :is="views[activePage]" /></KeepAlive>
       </main>
     </div>

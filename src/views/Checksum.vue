@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { Copy } from 'lucide-vue-next';
 import ToolCard from '../components/ToolCard.vue';
+import CopyButton from '../components/CopyButton.vue';
 import { calculateCrc16, verifyCrc16 } from '../core/checksum/crc16';
 import { calculateLrc, verifyLrc, formatLrcAsciiFrame } from '../core/checksum/lrc';
 import { formatCrc16Bytes, type CrcByteOrder } from '../core/checksum/crc16-format';
@@ -16,7 +16,6 @@ const mode = ref<'calculate' | 'verify'>('calculate');
 const order = ref<CrcByteOrder>('low-first');
 const result = ref<Result | null>(null);
 const error = ref('');
-const copyMessage = ref('');
 const exampleInput = computed(() => mode.value === 'calculate'
   ? '01 03 00 00 00 02'
   : `01 03 00 00 00 02 ${algorithm.value === 'lrc' ? 'FA' : order.value === 'low-first' ? 'C4 0B' : '0B C4'}`);
@@ -33,9 +32,9 @@ const frameText = computed(() => {
   const frame = [...result.value.payload, ...checksumBytes.value];
   return algorithm.value === 'lrc' ? formatLrcAsciiFrame(frame) : bytesText(frame);
 });
-watch([input, mode, algorithm], () => { result.value = null; error.value = ''; copyMessage.value = ''; }, { flush: 'sync' });
+watch([input, mode, algorithm], () => { result.value = null; error.value = '';  }, { flush: 'sync' });
 watch(order, () => {
-  copyMessage.value = '';
+
   if (algorithm.value === 'crc16' && mode.value === 'verify' && result.value) {
     run();
   }
@@ -46,7 +45,7 @@ function run() {
   }
   result.value = null;
   error.value = '';
-  copyMessage.value = '';
+
   try {
     const data = parseHexBytes(input.value);
     if (mode.value === 'verify') {
@@ -65,18 +64,11 @@ function run() {
     error.value = cause instanceof Error ? cause.message : '计算失败，请检查输入';
   }
 }
-async function copy(value: string) {
-  try {
-    await navigator.clipboard.writeText(value);
-    copyMessage.value = '已复制';
-  } catch {
-    copyMessage.value = '复制失败，请选择结果手动复制';
-  }
-}
+
 </script>
 
 <template>
-  <div class="checksum-layout">
+  <div class="workspace-grid converter-layout">
     <ToolCard title="校验计算器" subtitle="通用校验工具 · 本地计算">
       <form class="form-stack" @submit.prevent="run">
         <label>校验算法<select v-model="algorithm"><option value="crc16">CRC16 / Modbus</option><option value="lrc">LRC / Modbus ASCII</option></select></label>
@@ -89,17 +81,23 @@ async function copy(value: string) {
         <div class="action-row"><button type="submit" class="primary-button">{{ mode === 'verify' ? '校验完整报文' : '计算' }}</button><button type="button" class="secondary-button" @click="input = ''">清空</button></div>
       </form>
       <p v-if="error" role="alert" class="checksum-error">{{ error }}</p>
-      <div v-if="result" class="demo-result" aria-live="polite">
-        <p>{{ checksumName }} 数值：<code>0x{{ hex(result.checksum, checksumLength * 2) }}</code></p>
-        <div class="result-label result-copy-label"><span>{{ checksumName }} 字节<span class="result-copy-detail"> · {{ algorithm === 'lrc' ? '单字节' : order === 'low-first' ? '低字节在前' : '高字节在前' }}</span></span></div>
-        <div class="result-copy-row"><pre class="result-copy-content">{{ checksumText }}</pre><button class="result-copy-button" :aria-label="`复制 ${checksumName} 字节`" :title="`复制 ${checksumName} 字节`" @click="copy(checksumText)"><Copy :size="16" />复制</button></div>
-        <template v-if="result.received !== undefined"><p>报文中 {{ checksumName }} 字节：<code>{{ bytesText(result.receivedBytes!) }}</code></p><p>报文中 {{ checksumName }} 数值：<code>0x{{ hex(result.received, checksumLength * 2) }}</code></p><p :class="result.valid ? 'checksum-success' : 'checksum-error'">{{ result.valid ? `${checksumName} 校验通过` : `${checksumName} 校验失败：报文校验值与计算值不一致` }}</p><p>此结果仅判断校验值是否匹配，不代表报文业务结构有效。</p></template>
-        <div class="crc-frame-heading"><span>{{ mode === 'verify' ? `重新生成的完整报文（替换原 ${checksumName}）` : '追加校验码后的完整报文' }}</span></div>
-        <div class="result-copy-row"><pre class="result-copy-content">{{ algorithm === 'lrc' ? frameText.replace(/\r\n$/, '<CR><LF>') : frameText }}</pre><button class="result-copy-button" aria-label="复制完整报文" title="复制完整报文" @click="copy(frameText)"><Copy :size="16" />复制</button></div>
+    </ToolCard>
+    <ToolCard title="计算结果" subtitle="校验值与完整报文 · 本地计算">
+      <div v-if="result" class="form-stack" aria-live="polite">
+        <p class="checksum-hint">{{ checksumName }} 数值：<code>0x{{ hex(result.checksum, checksumLength * 2) }}</code></p>
+        <div>
+          <div class="result-label result-copy-label"><span>{{ checksumName }} 字节<span class="result-copy-detail"> · {{ algorithm === 'lrc' ? '单字节' : order === 'low-first' ? '低字节在前' : '高字节在前' }}</span></span></div>
+          <div class="result-copy-row"><pre class="result-copy-content">{{ checksumText }}</pre><CopyButton :text="checksumText" :aria-label="`复制 ${checksumName} 字节`" /></div>
+        </div>
+        <template v-if="result.received !== undefined"><p class="checksum-hint">报文中 {{ checksumName }} 字节：<code>{{ bytesText(result.receivedBytes!) }}</code></p><p class="checksum-hint">报文中 {{ checksumName }} 数值：<code>0x{{ hex(result.received, checksumLength * 2) }}</code></p><p :class="result.valid ? 'checksum-success checksum-hint' : 'checksum-error'">{{ result.valid ? `${checksumName} 校验通过` : `${checksumName} 校验失败：报文校验值与计算值不一致` }}</p><p class="checksum-hint">此结果仅判断校验值是否匹配，不代表报文业务结构有效。</p></template>
+        <div>
+          <div class="result-label result-copy-label">{{ mode === 'verify' ? `重新生成的完整报文（替换原 ${checksumName}）` : '追加校验码后的完整报文' }}</div>
+          <div class="result-copy-row"><pre class="result-copy-content">{{ algorithm === 'lrc' ? frameText.replace(/\r\n$/, '<CR><LF>') : frameText }}</pre><CopyButton :text="frameText" aria-label="复制完整报文" /></div>
+        </div>
         <p v-if="algorithm === 'lrc'" class="checksum-hint">完整报文以冒号起始、CRLF 结束，无空格；复制包含实际回车和换行，可按文本 / ASCII 模式发送。</p>
         <p v-if="algorithm === 'crc16' && order === 'high-first'" class="checksum-hint">高字节在前的输出不符合 Modbus RTU 标准。</p>
       </div>
-      <p v-if="copyMessage" role="status" class="checksum-hint">{{ copyMessage }}</p>
+      <div v-else class="empty-state">暂无计算结果<p>输入数据后计算；修改输入或配置后清空结果。</p></div>
     </ToolCard>
   </div>
 </template>
