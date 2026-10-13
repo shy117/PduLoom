@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import appLogo from '../src-tauri/icons/PduLoom.svg';
 import { FileInput, ScanLine, ShieldCheck, ArrowLeftRight, Sun, Moon, ChevronRight, PanelLeftClose, PanelLeftOpen, Repeat } from 'lucide-vue-next';
 import { pages, type PageId } from './ui/navigation';
 import { resolveTheme, toggleTheme } from './ui/theme';
@@ -30,7 +31,7 @@ applyTheme();
 <template>
   <div class="app-shell">
     <aside id="app-sidebar" class="sidebar" :class="{ 'sidebar-collapsed': !sidebarExpanded }">
-      <div class="sidebar-heading"><div class="brand"><strong>PduLoom</strong></div><button class="sidebar-toggle" :aria-label="sidebarExpanded ? '收起侧边栏' : '展开侧边栏'" :title="sidebarExpanded ? '收起侧边栏' : '展开侧边栏'" :aria-expanded="sidebarExpanded" aria-controls="app-sidebar" @click="sidebarExpanded = !sidebarExpanded"><PanelLeftClose v-if="sidebarExpanded" :size="20" /><PanelLeftOpen v-else :size="20" /></button></div>
+      <div class="sidebar-heading"><div class="brand"><img :src="appLogo" class="app-logo" alt="" width="32" height="32" /><strong>PduLoom</strong></div><button class="sidebar-toggle" :aria-label="sidebarExpanded ? '收起侧边栏' : '展开侧边栏'" :title="sidebarExpanded ? '收起侧边栏' : '展开侧边栏'" :aria-expanded="sidebarExpanded" aria-controls="app-sidebar" @click="sidebarExpanded = !sidebarExpanded"><PanelLeftClose v-if="sidebarExpanded" :size="20" /><PanelLeftOpen v-else :size="20" /></button></div>
       <nav aria-label="功能导航">
         <p class="nav-group">协议工具</p><div class="protocol-heading">Modbus <span class="badge">首版</span></div>
         <button v-for="item in pages.slice(0, 3)" :key="item.id" class="nav-button" :class="{ active: activePage === item.id }" :aria-label="item.title" :title="sidebarExpanded ? undefined : item.title" :aria-current="activePage === item.id ? 'page' : undefined" @click="activePage = item.id"><component :is="icons[item.id]" :size="18" /><span class="nav-label">{{ item.title }}</span><ChevronRight v-if="activePage === item.id" :size="15" class="nav-arrow" /></button>
@@ -41,7 +42,7 @@ applyTheme();
       <div class="sidebar-footer"><span class="status-dot"></span>本地计算<p>v0.1.0</p></div>
     </aside>
     <div class="main-shell">
-      <header class="topbar"><div class="topbar-brand"><strong>PduLoom</strong><span class="topbar-subtitle">Protocol Frame Builder &amp; Analyzer</span></div><button class="theme-button" :aria-label="theme === 'light' ? '切换深色主题' : '切换浅色主题'" @click="changeTheme"><Moon v-if="theme === 'light'" :size="18" /><Sun v-else :size="18" /><span>{{ theme === 'light' ? '深色主题' : '浅色主题' }}</span></button></header>
+      <header class="topbar"><div class="topbar-brand"><div class="brand"><img :src="appLogo" class="app-logo" alt="" width="32" height="32" /><strong>PduLoom</strong></div><span class="topbar-subtitle">Protocol Frame Builder &amp; Analyzer</span></div><button class="theme-button" :aria-label="theme === 'light' ? '切换深色主题' : '切换浅色主题'" @click="changeTheme"><Moon v-if="theme === 'light'" :size="18" /><Sun v-else :size="18" /><span>{{ theme === 'light' ? '深色主题' : '浅色主题' }}</span></button></header>
       <main><div class="page-heading"><div><p class="eyebrow">{{ activePage === 'builder' || activePage === 'parser' || activePage === 'format' ? 'Modbus 协议工具' : '通用工具' }}</p><h1>{{ page.title }}</h1><p>{{ page.description }}</p></div><span v-if="isPlaceholderPage" class="stage-tag">基础界面</span></div>
         <div v-if="isPlaceholderPage" class="stage-notice">当前页面为基础框架。“报文生成”的 Modbus RTU、“校验计算”和“数据转换”已可使用，报文解析及格式转换尚未接入。</div>
         <KeepAlive><component :is="views[activePage]" /></KeepAlive>

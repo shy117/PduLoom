@@ -1,7 +1,7 @@
 [package]
-name = "app"
+name = "pduloom"
 version = "0.1.0"
-description = "A Tauri App"
+description = "多协议报文生成与解析工具"
 authors = ["you"]
 license = ""
 repository = ""
@@ -13,6 +13,10 @@ rust-version = "1.90"
 [lib]
 name = "app_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "PduLoom"
+path = "src/main.rs"
 
 [build-dependencies]
 tauri-build = { version = "2.7.2", features = [] }
