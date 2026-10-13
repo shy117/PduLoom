@@ -13,11 +13,10 @@ export interface ParsedPayload {
   registers: { offset: number; value: number; address?: number }[];
   states: { offset: number; bit: number; value: boolean; address?: number }[];
 }
-export interface ParsedFrame {
+export interface ParsedBody {
   bytes: number[];
   unitId: number;
   functionCode: number;
-  crc: Crc16Verification;
   supported: boolean;
   candidates: FrameType[];
   payload?: ParsedPayload;
@@ -26,6 +25,9 @@ export interface ParsedFrame {
   warnings: string[];
   rules: RuleResult[];
 }
+export interface FrameChecksum { algorithm: 'CRC16' | 'LRC'; valid: boolean; received: number; calculated: number }
+export interface ParsedMessage extends ParsedBody { checksum: FrameChecksum }
+export interface ParsedFrame extends ParsedMessage { crc: Crc16Verification }
 
 /** 偏移针对完整帧；单条规则失败不阻止其他规则，64 位整数直接格式化 bigint。 */
 export function parseFrameRules(bytes: readonly number[], rules: readonly ParseRule[]): RuleResult[] {
@@ -44,7 +46,7 @@ export function parseFrameRules(bytes: readonly number[], rules: readonly ParseR
 
 function parsePayload(bytes: readonly number[], frameType: FrameType): ParsedPayload {
   const code = bytes[1]!;
-  const end = bytes.length - 2;
+  const end = bytes.length;
   const result: ParsedPayload = { frameType, fields: [], errors: [], warnings: [], registers: [], states: [] };
   const error = (message: string) => { result.errors.push(message); };
   const field = (name: string, offset: number, length: number, description = '') => {
@@ -63,7 +65,7 @@ function parsePayload(bytes: readonly number[], frameType: FrameType): ParsedPay
     return quantity;
   };
   if (frameType === 'exception') {
-    exact(5);
+    exact(3);
     if ((code & 0x80) === 0) { error('异常响应功能码必须设置最高位'); }
     const exception = end > 2 ? bytes[2] : undefined;
     const known = exceptionCodes.find(item => item.code === exception);
@@ -74,15 +76,15 @@ function parsePayload(bytes: readonly number[], frameType: FrameType): ParsedPay
   if ((code & 0x80) !== 0) { error('所选类型与异常功能码不一致'); return result; }
   const request = frameType === 'request';
   if (code >= 1 && code <= 4 && request) {
-    exact(8); addressQuantity(code <= 2 ? 2000 : 125);
+    exact(6); addressQuantity(code <= 2 ? 2000 : 125);
   } else if (code === 5 || code === 6) {
-    exact(8);
+    exact(6);
     field('协议地址', 2, 2, String(word(2) ?? ''));
     const value = word(4);
     field(code === 5 ? '线圈状态' : '寄存器值', 4, 2, code === 5 ? value === 0xff00 ? '开启' : value === 0 ? '关闭' : '非法状态' : String(value ?? ''));
     if (code === 5 && value !== undefined && value !== 0 && value !== 0xff00) { error('线圈状态必须为 FF00 或 0000'); }
   } else if ((code === 15 || code === 16) && !request) {
-    exact(8); addressQuantity(code === 15 ? 1968 : 123);
+    exact(6); addressQuantity(code === 15 ? 1968 : 123);
   } else {
     const write = code === 15 || code === 16;
     const coils = code === 1 || code === 2 || code === 15;
@@ -92,7 +94,7 @@ function parsePayload(bytes: readonly number[], frameType: FrameType): ParsedPay
     const count = countOffset < end ? bytes[countOffset] : undefined;
     field('数据字节数', countOffset, 1, String(count ?? ''));
     if (count === undefined) { return result; }
-    exact(dataOffset + count + 2);
+    exact(dataOffset + count);
     if (write && quantity !== undefined && count !== (coils ? Math.ceil(quantity / 8) : quantity * 2)) { error('数据字节数与数量不一致'); }
     if (!write && (count < 1 || count > 250 || (!coils && count % 2 !== 0))) { error('响应数据字节数非法'); }
     const available = Math.min(count, Math.max(0, end - dataOffset));
@@ -116,11 +118,10 @@ function parsePayload(bytes: readonly number[], frameType: FrameType): ParsedPay
   return result;
 }
 
-/** 仅接受单条完整 RTU 帧；结构诊断与 CRC 分离，歧义保留供调用者选择。 */
-export function parseRtuFrame(input: string, frameType: FrameType | 'auto' = 'auto', rules: readonly ParseRule[] = []): ParsedFrame {
+/** 共用串行业务解析，不包含校验字节，字段偏移从从站地址开始。 */
+export function parseSerialBody(bytes: number[], frameType: FrameType | 'auto' = 'auto'): ParsedBody {
   if (!['auto', 'request', 'response', 'exception'].includes(frameType)) { throw new Error('不支持的报文类型'); }
-  const bytes = parseHexBytes(input);
-  if (bytes.length < 4) { throw new Error('RTU 报文至少需要从站地址、功能码和两个 CRC 字节'); }
+  if (bytes.length < 2) { throw new Error('业务数据至少需要从站地址和功能码'); }
   const unitId = bytes[0]!;
   const functionCode = bytes[1]!;
   const baseCode = functionCode & 0x7f;
@@ -130,8 +131,7 @@ export function parseRtuFrame(input: string, frameType: FrameType | 'auto' = 'au
     { name: '从站地址', offset: 0, bytes: bytes.slice(0, 1), description: unitId === 0 ? '广播地址' : String(unitId) },
     { name: '功能码', offset: 1, bytes: bytes.slice(1, 2), description: functionCode & 0x80 ? `异常响应，原功能码 ${baseCode.toString(16).toUpperCase().padStart(2, '0')}；${functionNames[baseCode] ?? '未支持的功能'}` : functionNames[baseCode] ?? '未支持的功能' },
   ];
-  const result: ParsedFrame = { bytes, unitId, functionCode, crc: verifyCrc16(bytes), supported, candidates: [], fields, errors: [], warnings: [], rules: parseFrameRules(bytes, rules) };
-  if (bytes.length > 256) { result.errors.push('RTU 报文不能超过 256 字节'); }
+  const result: ParsedBody = { bytes, unitId, functionCode, supported, candidates: [], fields, errors: [], warnings: [], rules: [] };
   if (unitId > 247) { result.errors.push('从站地址必须为 0～247'); }
   if (baseCode === 0) { result.errors.push('功能码 00 非法'); }
   const broadcastCheck = (type: FrameType) => unitId === 0 && (type !== 'request' || ![5, 6, 15, 16].includes(functionCode));
@@ -150,7 +150,16 @@ export function parseRtuFrame(input: string, frameType: FrameType | 'auto' = 'au
       if (broadcastCheck(result.payload.frameType)) { result.errors.push('广播地址仅允许写请求，不允许读取或响应'); }
     } else if (unitId === 0) { result.errors.push('广播地址仅允许合法的写请求'); }
   } else { result.warnings.push('暂不支持该功能码的详细解析'); }
-  if (!result.payload) { fields.push({ name: '原始数据', offset: 2, bytes: bytes.slice(2, -2), description: '未进行详细解析' }); }
-  fields.push({ name: 'CRC16', offset: bytes.length - 2, bytes: bytes.slice(-2), description: result.crc.valid ? '校验通过，低字节在前' : '校验失败，低字节在前' });
+  if (!result.payload) { fields.push({ name: '原始数据', offset: 2, bytes: bytes.slice(2), description: '未进行详细解析' }); }
   return result;
+}
+
+/** RTU 校验与业务结构分别诊断，保留原有 crc 接口。 */
+export function parseRtuFrame(input: string, frameType: FrameType | 'auto' = 'auto', rules: readonly ParseRule[] = []): ParsedFrame {
+  const bytes = parseHexBytes(input);
+  if (bytes.length < 4) { throw new Error('RTU 报文至少需要从站地址、功能码和两个 CRC 字节'); }
+  const body = parseSerialBody(bytes.slice(0, -2), frameType);
+  const crc = verifyCrc16(bytes);
+  if (bytes.length > 256) { body.errors.push('RTU 报文不能超过 256 字节'); }
+  return { ...body, bytes, crc, checksum: { algorithm: 'CRC16', valid: crc.valid, received: crc.receivedCrc, calculated: crc.calculatedCrc }, rules: parseFrameRules(bytes, rules), fields: [...body.fields, { name: 'CRC16', offset: bytes.length - 2, bytes: bytes.slice(-2), description: crc.valid ? '校验通过，低字节在前' : '校验失败，低字节在前' }] };
 }

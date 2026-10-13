@@ -95,7 +95,7 @@ async function copy(value: string) {
         <div class="result-copy-row"><pre class="result-copy-content">{{ checksumText }}</pre><button class="result-copy-button" :aria-label="`复制 ${checksumName} 字节`" :title="`复制 ${checksumName} 字节`" @click="copy(checksumText)"><Copy :size="16" />复制</button></div>
         <template v-if="result.received !== undefined"><p>报文中 {{ checksumName }} 字节：<code>{{ bytesText(result.receivedBytes!) }}</code></p><p>报文中 {{ checksumName }} 数值：<code>0x{{ hex(result.received, checksumLength * 2) }}</code></p><p :class="result.valid ? 'checksum-success' : 'checksum-error'">{{ result.valid ? `${checksumName} 校验通过` : `${checksumName} 校验失败：报文校验值与计算值不一致` }}</p><p>此结果仅判断校验值是否匹配，不代表报文业务结构有效。</p></template>
         <div class="crc-frame-heading"><span>{{ mode === 'verify' ? `重新生成的完整报文（替换原 ${checksumName}）` : '追加校验码后的完整报文' }}</span></div>
-        <div class="result-copy-row"><pre class="result-copy-content">{{ frameText }}</pre><button class="result-copy-button" aria-label="复制完整报文" title="复制完整报文" @click="copy(frameText)"><Copy :size="16" />复制</button></div>
+        <div class="result-copy-row"><pre class="result-copy-content">{{ algorithm === 'lrc' ? frameText.replace(/\r\n$/, '<CR><LF>') : frameText }}</pre><button class="result-copy-button" aria-label="复制完整报文" title="复制完整报文" @click="copy(frameText)"><Copy :size="16" />复制</button></div>
         <p v-if="algorithm === 'lrc'" class="checksum-hint">完整报文以冒号起始、CRLF 结束，无空格；复制包含实际回车和换行，可按文本 / ASCII 模式发送。</p>
         <p v-if="algorithm === 'crc16' && order === 'high-first'" class="checksum-hint">高字节在前的输出不符合 Modbus RTU 标准。</p>
       </div>

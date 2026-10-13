@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { Copy, Plus, Trash2 } from 'lucide-vue-next';
 import ToolCard from '../components/ToolCard.vue';
+import { buildAsciiFrame, type BuiltAsciiFrame } from '../core/modbus/ascii';
 import { dataTypes, getByteLength, getByteOrders, decodeDataValue, formatDataValue } from '../core/data-conversion';
 import { buildRtuFrame, exceptionCodes, type FrameInput, type FrameType, type FunctionCode, type RegisterItem, type BuiltFrame } from '../core/modbus/builder';
 
@@ -11,6 +12,7 @@ const commands: { code: FunctionCode; name: string }[] = [
   { code: 5, name: '写单个线圈' }, { code: 6, name: '写单个寄存器' },
   { code: 15, name: '写多个线圈' }, { code: 16, name: '写多个寄存器' },
 ];
+const transport = ref<'rtu' | 'ascii'>('rtu');
 const frameType = ref<FrameType>('request');
 const functionCode = ref<FunctionCode>(3);
 const unitId = ref('1');
@@ -25,7 +27,7 @@ const newItem = (): RegisterItem & { id: number } => ({ id: nextId++, type: 'UIN
 const items = ref([newItem()]);
 const coilQuantity = ref<string | number>('1');
 const coilStates = ref([false]);
-const result = ref<BuiltFrame | null>(null);
+const result = ref<BuiltFrame | BuiltAsciiFrame | null>(null);
 const error = ref('');
 const copyMessage = ref('');
 const isException = computed(() => frameType.value === 'exception');
@@ -122,7 +124,7 @@ const dataDetails = computed(() => {
     return { ...row, bytes: field.bytes, value: formatDataValue(decodeDataValue(field.bytes, row.item.type, row.item.order)), offset: field.offset };
   });
 });
-watch([frameType, functionCode, unitId, address, addressRadix, quantity, singleValue, singleState, exceptionCode, items, coilQuantity, coilStates], () => {
+watch([transport, frameType, functionCode, unitId, address, addressRadix, quantity, singleValue, singleState, exceptionCode, items, coilQuantity, coilStates], () => {
   result.value = null;
   error.value = '';
   copyMessage.value = '';
@@ -207,7 +209,7 @@ function run() {
   error.value = '';
   copyMessage.value = '';
   try {
-    result.value = buildRtuFrame(configuration());
+    result.value = transport.value === 'ascii' ? buildAsciiFrame(configuration()) : buildRtuFrame(configuration());
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : '生成失败，请检查参数';
   }
@@ -224,7 +226,7 @@ async function copyFrame() {
     return;
   }
   try {
-    await navigator.clipboard.writeText(bytesText(result.value.bytes));
+    await navigator.clipboard.writeText('text' in result.value ? result.value.text : bytesText(result.value.bytes));
     copyMessage.value = '已复制';
   } catch {
     copyMessage.value = '复制失败，请选择结果手动复制';
@@ -234,10 +236,10 @@ async function copyFrame() {
 
 <template>
   <div class="workspace-grid builder-layout">
-    <ToolCard title="参数配置" subtitle="Modbus RTU · 本地组帧">
+    <ToolCard title="参数配置" :subtitle="transport === 'ascii' ? 'Modbus ASCII · 本地组帧' : 'Modbus RTU · 本地组帧'">
       <form class="form-stack" @submit.prevent="run">
         <div class="input-pair">
-          <label>传输格式<select><option>Modbus RTU</option><option disabled>Modbus ASCII（待实现）</option><option disabled>Modbus TCP（待实现）</option></select></label>
+          <label>传输格式<select v-model="transport"><option value="rtu">Modbus RTU</option><option value="ascii">Modbus ASCII</option><option disabled>Modbus TCP（待实现）</option></select></label>
           <label>报文类型<select v-model="frameType"><option value="request">请求帧</option><option value="response">正常响应帧</option><option value="exception">异常响应帧</option></select></label>
         </div>
         <div class="input-pair">
@@ -297,10 +299,10 @@ async function copyFrame() {
         <p v-if="error" role="alert" class="checksum-error">{{ error }}</p>
       </form>
     </ToolCard>
-    <ToolCard title="报文预览" subtitle="完整 RTU 报文与字段明细">
+    <ToolCard title="报文预览" subtitle="完整报文与字段明细">
       <div v-if="result" class="form-stack" aria-live="polite">
-        <div><div class="result-label result-copy-label">完整报文（HEX）</div><div class="result-copy-row"><pre class="result-copy-content">{{ bytesText(result.bytes) }}</pre><button class="result-copy-button" aria-label="复制完整报文" @click="copyFrame"><Copy :size="16" />复制</button></div></div>
-        <p class="checksum-hint">{{ result.bytes.length }} 字节<span v-if="result.quantity !== undefined"> · {{ result.quantity }} {{ [1, 2, 15].includes(functionCode) ? '个状态' : '个寄存器' }}</span></p>
+        <div><div class="result-label result-copy-label">{{ transport === 'ascii' ? '完整报文（ASCII 文本）' : '完整报文（HEX）' }}</div><div class="result-copy-row"><pre class="result-copy-content">{{ 'text' in result ? result.text.replace(/\r\n$/, '<CR><LF>') : bytesText(result.bytes) }}</pre><button class="result-copy-button" aria-label="复制完整报文" @click="copyFrame"><Copy :size="16" />复制</button></div></div>
+        <p class="checksum-hint"><template v-if="'text' in result">{{ result.text.length }} 个字符 · 复制包含实际 CRLF · </template>{{ result.bytes.length }} {{ transport === 'ascii' ? '个解码字节' : '字节' }}<span v-if="result.quantity !== undefined"> · {{ result.quantity }} {{ [1, 2, 15].includes(functionCode) ? '个状态' : '个寄存器' }}</span></p>
         <div>
           <div class="result-label result-copy-label">报文结构</div>
           <div class="builder-table-wrap builder-result-table-wrap">

@@ -42,7 +42,7 @@ applyTheme();
       <div class="sidebar-footer"><span class="status-dot"></span>本地计算<p>v0.1.0</p></div>
     </aside>
     <div class="main-shell">
-      <header class="topbar"><div class="topbar-brand"><div class="brand"><img :src="appLogo" class="app-logo" alt="" width="32" height="32" /><strong>PduLoom</strong></div><span class="topbar-subtitle">Protocol Frame Builder &amp; Analyzer</span></div><button class="theme-button" :aria-label="theme === 'light' ? '切换深色主题' : '切换浅色主题'" @click="changeTheme"><Moon v-if="theme === 'light'" :size="18" /><Sun v-else :size="18" /><span>{{ theme === 'light' ? '深色主题' : '浅色主题' }}</span></button></header>
+      <header class="topbar"><div class="topbar-brand"><div class="brand"><img :src="appLogo" class="app-logo" alt="" width="32" height="32" /><strong>PduLoom</strong></div><span class="topbar-subtitle">多协议报文生成与解析工具</span></div><button class="theme-button" :aria-label="theme === 'light' ? '切换深色主题' : '切换浅色主题'" @click="changeTheme"><Moon v-if="theme === 'light'" :size="18" /><Sun v-else :size="18" /><span>{{ theme === 'light' ? '深色主题' : '浅色主题' }}</span></button></header>
       <main><div class="page-heading"><div><p class="eyebrow">{{ activePage === 'builder' || activePage === 'parser' || activePage === 'format' ? 'Modbus 协议工具' : '通用工具' }}</p><h1>{{ page.title }}</h1><p>{{ page.description }}</p></div><span v-if="isPlaceholderPage" class="stage-tag">基础界面</span></div>
         <div v-if="isPlaceholderPage" class="stage-notice">格式转换尚未接入。Modbus RTU 报文生成与解析、校验计算和数据转换已可使用。</div>
         <KeepAlive><component :is="views[activePage]" /></KeepAlive>

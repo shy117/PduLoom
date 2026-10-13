@@ -165,3 +165,6 @@ main { padding: 24px; }
 .parser-rule-table td:first-child { min-width: 120px; }
 .parser-rule-table td:nth-child(2) { min-width: 100px; }
 @media (max-width: 640px) { .parser-layout .input-pair { grid-template-columns: 1fr; } }
+.parser-ascii-text { display: flex; flex-wrap: wrap; align-items: center; padding: 12px; border: 1px solid var(--border); border-radius: 7px; background: var(--background); font-family: Consolas, monospace; font-size: 13px; }
+.parser-ascii-text button { border: 0; padding: 3px 0; background: transparent; color: var(--text); font: inherit; }
+.parser-ascii-text button.active { color: var(--surface); background: var(--accent); }

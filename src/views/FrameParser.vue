@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
+import { normalizeAsciiTextInput, parseAsciiFrame, type ParsedAsciiFrame } from '../core/modbus/ascii';
 import { Plus, Trash2 } from 'lucide-vue-next';
 import ToolCard from '../components/ToolCard.vue';
 import { dataTypes, getByteOrders } from '../core/data-conversion';
@@ -9,22 +10,24 @@ import type { FrameType } from '../core/modbus/builder';
 type Rule = ParseRule & { id: number };
 const rules = ref<Rule[]>([]);
 const rawFrame = ref('');
+const transport = ref<'rtu' | 'ascii'>('rtu');
 const frameType = ref<FrameType | 'auto'>('auto');
-const result = ref<ParsedFrame>();
+const result = ref<ParsedFrame | ParsedAsciiFrame>();
 const error = ref('');
 const selected = ref<{ offset: number; length: number }>();
 let nextId = 1;
 const hex = (bytes: readonly number[]) => bytes.map(byte => byte.toString(16).toUpperCase().padStart(2, '0')).join(' ');
-const crcHex = (crc: number) => crc.toString(16).toUpperCase().padStart(4, '0');
+const crcHex = (crc: number, width: number) => crc.toString(16).toUpperCase().padStart(width, '0');
 const typeNames = { request: '请求帧', response: '正常响应帧', exception: '异常响应帧' };
-watch([rawFrame, frameType, rules], () => { result.value = undefined; error.value = ''; selected.value = undefined; }, { deep: true, flush: 'sync' });
+watch([rawFrame, transport, frameType, rules], () => { result.value = undefined; error.value = ''; selected.value = undefined; }, { deep: true, flush: 'sync' });
 function addRule() { rules.value.push({ id: nextId++, name: '', offset: 0, type: 'UINT16', order: 'AB' }); }
 function changeType(rule: Rule) { rule.order = getByteOrders(rule.type)[0]!; }
-function parse() {
+function parse(completeEnding = false) {
+  if (completeEnding && transport.value === 'ascii') { rawFrame.value = rawFrame.value.replace(/[\r\n]*$/, '') + '\r\n'; }
   selected.value = undefined;
   result.value = undefined;
   error.value = '';
-  try { result.value = parseRtuFrame(rawFrame.value, frameType.value, rules.value); }
+  try { result.value = transport.value === 'ascii' ? parseAsciiFrame(normalizeAsciiTextInput(rawFrame.value), frameType.value, rules.value) : parseRtuFrame(rawFrame.value, frameType.value, rules.value); }
   catch (cause) { error.value = cause instanceof Error ? cause.message : '解析失败'; }
 }
 function clear() { rawFrame.value = ''; result.value = undefined; error.value = ''; selected.value = undefined; }
@@ -33,18 +36,19 @@ function activeByte(index: number) { return selected.value && index >= selected.
 </script>
 <template>
   <div class="parser-layout form-stack">
-    <ToolCard title="原始报文" subtitle="输入单条完整 RTU 报文，包含末尾两个 CRC 字节">
+    <ToolCard title="原始报文" :subtitle="transport === 'ascii' ? '输入单条 ASCII 文本，以冒号开始、CRLF 结束，包含 LRC' : '输入单条完整 RTU 报文，包含末尾两个 CRC 字节'">
       <div class="form-stack">
         <div class="input-pair">
-          <label>传输格式<select><option>Modbus RTU</option><option disabled>Modbus ASCII（待实现）</option><option disabled>Modbus TCP（待实现）</option></select></label>
+          <label>传输格式<select v-model="transport"><option value="rtu">Modbus RTU</option><option value="ascii">Modbus ASCII</option><option disabled>Modbus TCP（待实现）</option></select></label>
           <label>报文类型<select v-model="frameType"><option value="auto">自动识别</option><option value="request">请求帧</option><option value="response">正常响应帧</option><option value="exception">异常响应帧</option></select></label>
         </div>
-        <label>完整报文<textarea v-model="rawFrame" rows="3" placeholder="支持连续 HEX 或空格、换行分隔的完整字节" /></label>
-        <div class="action-row"><button class="primary-button" @click="parse">解析报文</button><button class="secondary-button" @click="clear">清空报文</button></div>
+        <label>完整报文<textarea v-model="rawFrame" rows="3" :placeholder="transport === 'ascii' ? ':010300000002FA（末尾需 CRLF）' : '支持连续 HEX 或空格、换行分隔的完整字节'" /></label>
+        <p v-if="transport === 'ascii'" class="checksum-hint">文本框末尾的单个换行按 CRLF 处理；缺少结束符时可选择补齐后解析。</p>
+        <div class="action-row"><button class="primary-button" @click="parse()">解析报文</button><button v-if="transport === 'ascii'" class="secondary-button" @click="parse(true)">补齐 CRLF 并解析</button><button class="secondary-button" @click="clear">清空报文</button></div>
         <p v-if="error" class="checksum-error" role="alert">{{ error }}</p>
       </div>
     </ToolCard>
-    <ToolCard title="解析规则配置" subtitle="位置为完整报文字节偏移，从 0 开始；规则按指定类型和字节序独立解码">
+    <ToolCard title="解析规则配置" subtitle="位置为解码后完整报文字节偏移，从站地址为 0；ASCII 不计冒号和结束符">
       <div class="form-stack">
         <div class="builder-list-heading"><span>解析规则 · {{ rules.length }} 项</span><button type="button" class="secondary-button" @click="addRule"><Plus :size="16" />添加规则</button></div>
         <p v-if="rules.length === 0" class="rules-empty">暂无规则，仍可解析标准协议字段。</p>
@@ -62,18 +66,18 @@ function activeByte(index: number) { return selected.value && index >= selected.
         </div>
       </div>
     </ToolCard>
-    <ToolCard title="解析结果" subtitle="选择字段或原始字节可联动高亮；CRC 状态与协议结构分别显示">
+    <ToolCard title="解析结果" subtitle="选择字段或原始字节可联动高亮；校验状态与协议结构分别显示">
       <div v-if="!result" class="empty-state">暂无解析结果</div>
       <div v-else class="form-stack">
         <div class="parser-summary">
           <span>长度：{{ result.bytes.length }} 字节</span><span>从站地址：{{ result.unitId }}</span><span>功能码：{{ hex([result.functionCode]) }}</span>
           <span>类型：{{ result.warnings.some(message => message.includes('无法确定方向')) ? '请求或正常响应（方向不确定）' : result.payload ? typeNames[result.payload.frameType] : '未确定' }}</span>
-          <span :class="result.crc.valid ? 'checksum-success' : 'checksum-error'">CRC：{{ result.crc.valid ? '通过' : '失败' }}；收到 {{ crcHex(result.crc.receivedCrc) }} / 计算 {{ crcHex(result.crc.calculatedCrc) }}</span>
+          <span :class="result.checksum.valid ? 'checksum-success' : 'checksum-error'">{{ result.checksum.algorithm }}：{{ result.checksum.valid ? '通过' : '失败' }}；收到 {{ crcHex(result.checksum.received, result.checksum.algorithm === 'LRC' ? 2 : 4) }} / 计算 {{ crcHex(result.checksum.calculated, result.checksum.algorithm === 'LRC' ? 2 : 4) }}</span>
           <span :class="result.errors.length ? 'checksum-error' : ''">协议结构：{{ result.errors.length ? '不符合' : result.supported ? '符合' : '详细结构未检查' }}</span>
         </div>
         <div v-if="result.errors.length" class="checksum-error" role="alert"><p v-for="message in result.errors" :key="message">{{ message }}</p></div>
         <div v-if="result.warnings.length" class="parser-warning"><p v-for="message in result.warnings" :key="message">{{ message }}</p></div>
-        <div class="parser-bytes" aria-label="原始报文字节">
+        <div v-if="'text' in result" class="parser-ascii-text" aria-label="ASCII 原始文本"><span>:</span><button v-for="(_, index) in result.bytes" :key="index" :class="{ active: activeByte(index) }" :title="`解码字节偏移 ${index}；文本偏移 ${1 + index * 2}`" @click="highlight(index, 1)">{{ result.text.slice(1 + index * 2, 3 + index * 2) }}</button><span>{{ result.ending === '\r\n' ? '<CR><LF>' : result.ending === '\n' ? '<LF>' : result.ending === '\r' ? '<CR>' : '（缺少结束符）' }}</span></div><div class="parser-bytes" aria-label="解码后的报文字节">
           <button v-for="(byte, index) in result.bytes" :key="index" :title="`字节偏移 ${index}`" :aria-label="`字节偏移 ${index}：${hex([byte])}`" :class="{ active: activeByte(index) }" @click="highlight(index, 1)">{{ hex([byte]) }}</button>
         </div>
         <div class="converter-table-wrap"><table class="converter-table parser-table"><thead><tr><th>字段</th><th>偏移</th><th>长度</th><th>HEX</th><th>含义</th></tr></thead><tbody>

@@ -70,8 +70,8 @@ export function encodeRegisterItems(items: readonly RegisterItem[]): { bytes: nu
   return { bytes, parts, quantity: bytes.length / 2 };
 }
 
-/** 生成已校验业务参数的 RTU 帧；协议字段为大端，CRC 固定低字节在前。 */
-export function buildRtuFrame(input: FrameInput): BuiltFrame {
+/** 共用串行协议业务结构：地址与 PDU，不包含校验及字符封装。 */
+export function buildSerialBody(input: FrameInput): BuiltFrame {
   if (!functionCodes.includes(input.functionCode)) {
     throw new Error('不支持的功能码');
   }
@@ -178,6 +178,12 @@ export function buildRtuFrame(input: FrameInput): BuiltFrame {
     }
   }
   const pdu = bytes.slice(1);
-  add('CRC16', formatCrc16Bytes(calculateCrc16(bytes)), '低字节在前');
   return { bytes, pdu, fields, quantity };
+}
+
+/** RTU 封装固定使用低字节在前的 CRC。 */
+export function buildRtuFrame(input: FrameInput): BuiltFrame {
+  const body = buildSerialBody(input);
+  const crc = formatCrc16Bytes(calculateCrc16(body.bytes));
+  return { ...body, bytes: [...body.bytes, ...crc], fields: [...body.fields, { name: 'CRC16', offset: body.bytes.length, bytes: crc, description: '低字节在前' }] };
 }
