@@ -2,7 +2,7 @@
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "PduLoom",
   "version": "0.1.0",
-    "identifier": "com.pduloom.desktop",
+  "identifier": "com.pduloom.desktop",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://127.0.0.1:5173",
@@ -38,6 +38,12 @@
       "icons/PduLoom_256.png",
       "icons/PduLoom.ico"
     ],
+    "windows": {
+      "nsis": {
+        "installerIcon": "icons/PduLoom.ico",
+        "uninstallerIcon": "icons/PduLoom.ico"
+      }
+    },
     "android": {
       "debugApplicationIdSuffix": ".debug"
     }

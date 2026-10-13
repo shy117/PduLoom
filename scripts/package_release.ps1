@@ -109,8 +109,10 @@ try {
     $resources[(Join-Path $repoRoot 'docs/images') + '/'] = 'docs/images/'
     $resources[(Join-Path $releaseRoot 'third-party-inventory.json')] = 'third-party-inventory.json'
     $resources[(Join-Path $releaseRoot 'license-review.txt')] = 'license-review.txt'
+    $installerIcon = Join-Path $repoRoot 'src-tauri/icons/PduLoom.ico'
+    if (!(Test-Path -LiteralPath $installerIcon -PathType Leaf)) { throw "安装器图标不存在：$installerIcon" }
     foreach ($mode in @('online', 'offline')) {
-        $config = @{ bundle = @{ targets = @('nsis'); resources = $resources; windows = @{ webviewInstallMode = @{ type = $(if ($mode -eq 'online') { 'downloadBootstrapper' } else { 'offlineInstaller' }) }; nsis = @{ installMode = 'currentUser'; languages = @('SimpChinese', 'English'); displayLanguageSelector = $true } } } }
+        $config = @{ bundle = @{ targets = @('nsis'); resources = $resources; windows = @{ webviewInstallMode = @{ type = $(if ($mode -eq 'online') { 'downloadBootstrapper' } else { 'offlineInstaller' }) }; nsis = @{ installerIcon = $installerIcon; uninstallerIcon = $installerIcon; installMode = 'currentUser'; languages = @('SimpChinese', 'English'); displayLanguageSelector = $true } } } }
         Save-Json $config (Join-Path $releaseRoot "$mode.json")
     }
     if ($PrepareOnly) { Write-Host "发布资料准备完成，许可证缺失数：$($missing.Count)；目录：$releaseRoot"; return }
