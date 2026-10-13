@@ -1,6 +1,6 @@
 # 变更记录
 
-本文件记录已完成的版本功能。安装包制作和安装验证状态见 [RELEASE.md](RELEASE.md)。
+本文件记录各版本的功能变更。安装与使用说明见 [RELEASE.md](RELEASE.md)，发布包制作方法见 [docs/PACKAGING.md](docs/PACKAGING.md)。
 
 ## v0.1.0 — 2026-10-13
 

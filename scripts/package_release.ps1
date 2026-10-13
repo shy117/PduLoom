@@ -2,7 +2,8 @@
 param(
     [string]$Version = '0.1.0',
     [string]$OutputDirectory = '',
-    [switch]$InstallDependencies
+    [switch]$InstallDependencies,
+    [switch]$PrepareOnly
 )
 
 Set-StrictMode -Version Latest
@@ -18,14 +19,36 @@ function Save-Json {
     [IO.File]::WriteAllText($Path, ($Value | ConvertTo-Json -Depth 20), [Text.UTF8Encoding]::new($false))
 }
 function Collect-Licenses {
-    param([string]$PackageRoot, [string]$Name, [string]$PackageVersion, [string]$License, [string]$Ecosystem)
+    param([string]$PackageRoot, [string]$Name, [string]$PackageVersion, [string]$License, [string]$Ecosystem, [string]$LicenseFile = '', [string]$VcsCommit = '')
     $safeName = $Name -replace '[^A-Za-z0-9._-]', '_'
     $destination = Join-Path $legalRoot "$Ecosystem/$safeName-$PackageVersion"
     New-Item -ItemType Directory -Path $destination -Force | Out-Null
     $files = @(Get-ChildItem -LiteralPath $PackageRoot -File | Where-Object { $_.Name -match '^(LICENSE|LICENCE|COPYING|NOTICE|COPYRIGHT)([._-]|$)' })
+    # Cargo 显式指定的 license_file 可能位于子目录，必须在判断缺失前处理。
+    if ($LicenseFile) {
+        $declaredFile = Join-Path $PackageRoot $LicenseFile
+        if (Test-Path -LiteralPath $declaredFile -PathType Leaf) { $files += Get-Item -LiteralPath $declaredFile }
+    }
+    $files = @($files | Sort-Object FullName -Unique)
+    $key = "$Ecosystem/$Name@$PackageVersion"
+    $source = $null
+    if ($files.Count -eq 0 -and $licenseSources.ContainsKey($key)) {
+        $source = $licenseSources[$key]
+        if ($source.license -ne $License -or $source.gitCommit -ne $VcsCommit) { throw "许可证补充文件与依赖声明或源码提交不一致：$key" }
+        $snapshotRoot = Join-Path $repoRoot "installer/licenses/$Ecosystem/$safeName-$PackageVersion"
+        foreach ($sourceFile in $source.files) {
+            if ([IO.Path]::GetFileName($sourceFile.name) -ne $sourceFile.name) { throw "许可证文件名非法：$key" }
+            $snapshot = Join-Path $snapshotRoot $sourceFile.name
+            if ((Get-FileHash -LiteralPath $snapshot -Algorithm SHA256).Hash.ToLowerInvariant() -ne $sourceFile.sha256) { throw "许可证补充文件校验失败：$key" }
+            $files += Get-Item -LiteralPath $snapshot
+        }
+        Save-Json $source (Join-Path $destination 'SOURCE.json')
+    }
     foreach ($file in $files) { Copy-Item -LiteralPath $file.FullName -Destination $destination }
-    $inventory.Add([pscustomobject]@{ ecosystem = $Ecosystem; name = $Name; version = $PackageVersion; license = $License; files = @($files | ForEach-Object Name) })
-    if ($files.Count -eq 0) { $missing.Add("$Ecosystem/$Name@$PackageVersion ($License)") }
+    $record = @{ ecosystem = $Ecosystem; name = $Name; version = $PackageVersion; license = $License; files = @($files | ForEach-Object Name) }
+    if ($source) { $record['selectedLicense'] = $source.selectedLicense; $record['source'] = $source }
+    $inventory.Add([pscustomobject]$record)
+    if ($files.Count -eq 0) { $missing.Add("$key ($License)") }
 }
 
 Push-Location $repoRoot
@@ -53,6 +76,7 @@ try {
     $legalRoot = Join-Path $releaseRoot 'licenses'
     $inventory = [Collections.Generic.List[object]]::new()
     $missing = [Collections.Generic.List[string]]::new()
+    $licenseSources = Get-Content -LiteralPath (Join-Path $repoRoot 'installer/licenses/sources.json') -Raw | ConvertFrom-Json -AsHashtable
     $npmPaths = @(& npm.cmd ls --omit=dev --all --parseable)
     if ($LASTEXITCODE -ne 0) { throw 'npm 依赖树检查失败' }
     foreach ($packageRoot in $npmPaths) {
@@ -69,15 +93,13 @@ try {
     foreach ($package in $cargo.packages) {
         if ($package.id -eq $app.id) { continue }
         $packageRoot = Split-Path -Parent $package.manifest_path
-        Collect-Licenses $packageRoot $package.name $package.version ([string]$package.license) 'cargo'
-        if ($package.license_file) {
-            $file = Join-Path $packageRoot $package.license_file
-            if (Test-Path -LiteralPath $file) { Copy-Item -LiteralPath $file -Destination (Join-Path $legalRoot "cargo/$($package.name)-$($package.version)") -Force }
-        }
+        $vcsPath = Join-Path $packageRoot '.cargo_vcs_info.json'
+        $vcsCommit = if (Test-Path -LiteralPath $vcsPath) { (Get-Content -LiteralPath $vcsPath -Raw | ConvertFrom-Json).git.sha1 } else { '' }
+        Collect-Licenses $packageRoot $package.name $package.version ([string]$package.license) 'cargo' ([string]$package.license_file) $vcsCommit
     }
     Save-Json @($inventory.ToArray()) (Join-Path $releaseRoot 'third-party-inventory.json')
     [IO.File]::WriteAllLines((Join-Path $releaseRoot 'license-review.txt'), $missing.ToArray(), [Text.UTF8Encoding]::new($false))
-    if ($missing.Count) { Write-Warning "$($missing.Count) 个依赖未在包根目录发现许可证全文，详见 license-review.txt；正式发布前需复核。" }
+    if ($missing.Count) { throw "$($missing.Count) 个依赖缺少许可证全文，详见 license-review.txt；补齐后再制作发布包。" }
 
     $resources = @{}
     foreach ($name in @('LICENSE', 'NOTICE', 'README.md', 'CHANGELOG.md', 'RELEASE.md')) {
@@ -91,6 +113,7 @@ try {
         $config = @{ bundle = @{ targets = @('nsis'); resources = $resources; windows = @{ webviewInstallMode = @{ type = $(if ($mode -eq 'online') { 'downloadBootstrapper' } else { 'offlineInstaller' }) }; nsis = @{ installMode = 'currentUser'; languages = @('SimpChinese', 'English'); displayLanguageSelector = $true } } } }
         Save-Json $config (Join-Path $releaseRoot "$mode.json")
     }
+    if ($PrepareOnly) { Write-Host "发布资料准备完成，许可证缺失数：$($missing.Count)；目录：$releaseRoot"; return }
     # 只编译一次，两个安装包复用相同程序；资源配置在编译与打包时保持一致。
     Invoke-Checked 'npx.cmd' @('--no-install', 'tauri', 'build', '--no-bundle', '--ci', '--config', (Join-Path $releaseRoot 'online.json'), '--', '--locked')
     $binaryRoot = Join-Path ([string]$cargo.target_directory) 'release'

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="src-tauri/icons/PduLoom_logo.png" alt="PduLoom" width="680">
+  <img src="docs/images/PduLoom_logo.png" alt="PduLoom" width="680">
 </p>
 
 <p align="center">
@@ -179,6 +179,7 @@ tests/          单元测试
 
 - [版本变更](CHANGELOG.md)
 - [发布说明](RELEASE.md)
+- [发布包制作](docs/PACKAGING.md)
 - [项目声明](NOTICE)
 
 第三方依赖保持各自的许可证及版权声明，发布包应附带适用的第三方许可证。

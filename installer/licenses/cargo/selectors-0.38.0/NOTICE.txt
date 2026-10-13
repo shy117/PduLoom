@@ -1,0 +1,8 @@
+selectors 0.38.0
+Authors: The Servo Project Developers
+Source: https://github.com/servo/stylo/tree/572ecba2d1600e7c3d490586692a209faf703baa/selectors
+Source archive: https://github.com/servo/stylo/archive/572ecba2d1600e7c3d490586692a209faf703baa.zip
+Original license notice in selectors/lib.rs:
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at https://mozilla.org/MPL/2.0/.
