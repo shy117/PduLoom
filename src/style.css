@@ -145,3 +145,23 @@ main { padding: 24px; }
 .builder-structure-table tr:last-child td, .builder-data-table tr:last-child td { border-bottom: 0; }
 .builder-data-table td:first-child, .builder-data-table td:nth-child(2), .builder-data-table td:nth-child(3) { white-space: nowrap; }
 @media (max-width: 640px) { .builder-layout .input-pair { grid-template-columns: 1fr; }.builder-list-heading { flex-wrap: wrap; } }
+
+/* 报文解析结果复用主题变量，表格在窄屏横向滚动。 */
+.parser-layout > * { min-width: 0; }
+.parser-summary { display: flex; flex-wrap: wrap; gap: 12px 24px; font-size: 12px; line-height: 1.8; }
+.parser-summary .checksum-error { margin: 0; }
+.parser-warning { color: var(--accent); background: var(--soft); border: 1px solid var(--border); padding: 10px 12px; border-radius: 7px; font-size: 12px; line-height: 1.7; margin: 0; }
+.parser-warning p, .parser-layout .checksum-error p { margin: 0; }
+.parser-bytes { display: flex; flex-wrap: wrap; gap: 4px; padding: 12px; background: var(--background); border: 1px solid var(--border); border-radius: 7px; }
+.parser-bytes button, .parser-states button { border: 1px solid var(--border); border-radius: 4px; padding: 5px 7px; background: var(--surface); color: var(--text); font-family: Consolas, monospace; font-size: 12px; }
+.parser-bytes button.active, .parser-states button.active { background: var(--accent); color: var(--surface); }
+.parser-selected { background: var(--soft); }
+.parser-field-button { border: 0; padding: 2px; background: transparent; color: var(--accent); text-align: left; font-size: inherit; overflow-wrap: anywhere; }
+.parser-table { min-width: 560px; }
+.parser-table td:nth-child(4) { max-width: 360px; overflow-wrap: anywhere; }
+.parser-states { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; max-height: 320px; overflow-y: auto; }
+.parser-states button { min-width: 0; padding: 5px 2px; overflow-wrap: anywhere; }
+.parser-layout h3 { font-size: 13px; margin: 0; }
+.parser-rule-table td:first-child { min-width: 120px; }
+.parser-rule-table td:nth-child(2) { min-width: 100px; }
+@media (max-width: 640px) { .parser-layout .input-pair { grid-template-columns: 1fr; } }

@@ -23,7 +23,6 @@ const exceptionCode = ref(2);
 let nextId = 1;
 const newItem = (): RegisterItem & { id: number } => ({ id: nextId++, type: 'UINT16', order: 'AB', value: '0' });
 const items = ref([newItem()]);
-const states = ref([{ id: nextId++, value: false }]);
 const coilQuantity = ref<string | number>('1');
 const coilStates = ref([false]);
 const result = ref<BuiltFrame | null>(null);
@@ -32,10 +31,9 @@ const copyMessage = ref('');
 const isException = computed(() => frameType.value === 'exception');
 const isRequest = computed(() => frameType.value === 'request');
 const registerList = computed(() => !isException.value && ((functionCode.value === 16 && isRequest.value) || ([3, 4].includes(functionCode.value) && !isRequest.value)));
-const stateList = computed(() => !isException.value && ((functionCode.value === 15 && isRequest.value) || ([1, 2].includes(functionCode.value) && !isRequest.value)));
-const coilSelector = computed(() => !isException.value && ((isRequest.value && functionCode.value === 15) || (!isRequest.value && functionCode.value === 2)));
+const coilSelector = computed(() => !isException.value && ((isRequest.value && functionCode.value === 15) || (!isRequest.value && [1, 2].includes(functionCode.value))));
 const coilLabel = computed(() => functionCode.value === 2 ? '离散输入' : '线圈');
-const coilLimit = computed(() => functionCode.value === 2 ? 2000 : 1968);
+const coilLimit = computed(() => isRequest.value ? 1968 : 2000);
 const coilCount = computed(() => {
   // 数字输入框的 v-model 会将有效输入转为 number，空输入仍为字符串。
   const text = String(coilQuantity.value).trim();
@@ -63,7 +61,6 @@ const hasAddress = computed(() => !isException.value && (isRequest.value || func
 const hasQuantity = computed(() => !isException.value && ((isRequest.value && functionCode.value <= 4) || (!isRequest.value && functionCode.value >= 15)));
 const registerCount = computed(() => items.value.reduce((sum, item) => sum + getByteLength(item.type) / 2, 0));
 const registerLimit = computed(() => isRequest.value ? 123 : 125);
-const stateLimit = computed(() => isRequest.value ? 1968 : 2000);
 const quantityLimit = computed(() => [1, 2].includes(functionCode.value) ? 2000 : functionCode.value === 15 ? 1968 : functionCode.value === 16 ? 123 : 125);
 const broadcastAllowed = computed(() => isRequest.value && [5, 6, 15, 16].includes(functionCode.value));
 const hex = (value: number, width = 2) => value.toString(16).toUpperCase().padStart(width, '0');
@@ -125,7 +122,7 @@ const dataDetails = computed(() => {
     return { ...row, bytes: field.bytes, value: formatDataValue(decodeDataValue(field.bytes, row.item.type, row.item.order)), offset: field.offset };
   });
 });
-watch([frameType, functionCode, unitId, address, addressRadix, quantity, singleValue, singleState, exceptionCode, items, states, coilQuantity, coilStates], () => {
+watch([frameType, functionCode, unitId, address, addressRadix, quantity, singleValue, singleState, exceptionCode, items, coilQuantity, coilStates], () => {
   result.value = null;
   error.value = '';
   copyMessage.value = '';
@@ -194,14 +191,11 @@ function configuration(): FrameInput {
     }
     return { ...base, frameType: 'request', functionCode: code, address: start, quantity: decimal(quantity.value, '读取数量') };
   }
-  if (code === 2) {
+  if (code === 1 || code === 2) {
     if (coilCount.value === null) {
-      throw new Error('离散输入数量请输入 1～2000 的十进制整数');
+      throw new Error(`${coilLabel.value}数量请输入 1～2000 的十进制整数`);
     }
     return { ...base, frameType: 'response', functionCode: code, states: coilStates.value };
-  }
-  if (code === 1) {
-    return { ...base, frameType: 'response', functionCode: code, states: states.value.map(item => item.value) };
   }
   if (code === 3 || code === 4) {
     return { ...base, frameType: 'response', functionCode: code, items: items.value };
@@ -221,7 +215,7 @@ function run() {
 function reset() {
   unitId.value = '1'; addressRadix.value = 10; address.value = '0'; quantity.value = '2'; singleValue.value = '0';
   singleState.value = false; exceptionCode.value = 2;
-  items.value = [newItem()]; states.value = [{ id: nextId++, value: false }];
+  items.value = [newItem()];
   coilQuantity.value = '1'; coilStates.value = [false];
   result.value = null; error.value = ''; copyMessage.value = '';
 }
@@ -299,22 +293,7 @@ async function copyFrame() {
             </div>
           </template>
         </div>
-        <div v-else-if="stateList" class="form-stack">
-          <div class="builder-list-heading"><span>{{ functionCode === 2 ? '离散输入状态' : '线圈状态' }}</span><button type="button" class="secondary-button" :disabled="states.length >= stateLimit" @click="states.push({ id: nextId++, value: false })"><Plus :size="16" />添加状态</button></div>
-          <p class="checksum-hint">{{ states.length }} 个状态 · {{ Math.ceil(states.length / 8) }} 个数据字节。</p>
-          <p v-if="!states.length" class="rules-empty">暂无状态，请点击“添加状态”。</p>
-          <div v-if="states.length" class="builder-table-wrap">
-            <table class="builder-state-table">
-              <thead><tr><th>{{ isRequest ? `协议地址（${addressRadix === 10 ? '十进制' : '十六进制'}）` : '状态序号' }}</th><th>状态</th><th>操作</th></tr></thead>
-              <tbody><tr v-for="(item, index) in states" :key="item.id">
-                <td><code>{{ isRequest ? (parsedAddress !== null ? formatAddress(parsedAddress + index) : '待填写') : index + 1 }}</code></td>
-                <td><select v-model="item.value" :aria-label="`状态项 ${index + 1} 状态`"><option :value="false">0 · 关闭</option><option :value="true">1 · 开启</option></select></td>
-                <td><button type="button" class="delete-rule-button" :aria-label="`删除状态项 ${index + 1}`" @click="states = states.filter(state => state.id !== item.id)"><Trash2 :size="16" />删除</button></td>
-              </tr></tbody>
-            </table>
-          </div>
-        </div>
-        <div class="action-row"><button type="submit" class="primary-button" :disabled="(registerList && !items.length) || (stateList && !coilSelector && !states.length)">生成报文</button><button type="button" class="secondary-button" @click="reset">重置参数</button></div>
+        <div class="action-row"><button type="submit" class="primary-button" :disabled="registerList && !items.length">生成报文</button><button type="button" class="secondary-button" @click="reset">重置参数</button></div>
         <p v-if="error" role="alert" class="checksum-error">{{ error }}</p>
       </form>
     </ToolCard>
