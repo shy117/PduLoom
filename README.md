@@ -1,12 +1,34 @@
-# PduLoom
+<p align="center">
+  <img src="src-tauri/icons/PduLoom_logo.png" alt="PduLoom" width="680">
+</p>
 
-多协议报文生成与解析工具
+<p align="center">
+  <a href="https://github.com/shy117/PduLoom/releases/latest"><img src="https://img.shields.io/github/v/release/shy117/PduLoom?display_name=tag&sort=semver" alt="Release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-green" alt="License: Apache-2.0"></a>
+  <img src="https://img.shields.io/badge/author-ShyHiker-64748b" alt="Author: ShyHiker">
+</p>
 
-PduLoom 提供网页版和 Windows 桌面版，用于离线报文生成、解析、校验和数据转换。两种版本共用界面与协议核心，所有计算在本地完成，不依赖在线接口或后台服务器。
+<p align="center">
+  <img src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white" alt="TypeScript">
+  <img src="https://img.shields.io/badge/Vue%203-4FC08D?logo=vuedotjs&logoColor=white" alt="Vue 3">
+  <img src="https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white" alt="Vite">
+  <img src="https://img.shields.io/badge/Tailwind%20CSS-06B6D4?logo=tailwindcss&logoColor=white" alt="Tailwind CSS">
+  <img src="https://img.shields.io/badge/Rust-000000?logo=rust&logoColor=white" alt="Rust">
+  <img src="https://img.shields.io/badge/Tauri%202-24C8D8?logo=tauri&logoColor=white" alt="Tauri 2">
+  <img src="https://img.shields.io/badge/Vitest-6E9F18?logo=vitest&logoColor=white" alt="Vitest">
+</p>
 
-当前已完成 Modbus RTU、ASCII、TCP 的基本功能，不包含实际串口或网络通信。
+<p align="center">
+  <strong>多协议报文生成与解析工具 · 支持网页版与 Windows 桌面版</strong>
+</p>
 
-## 已完成功能
+<p align="center">
+  <img src="docs/images/pduloom-main-window.png" alt="PduLoom 主界面：Modbus 报文生成与字段明细" width="100%">
+</p>
+
+所有计算在本地完成，不依赖在线接口或后台服务器。网页版与桌面版共用界面和协议核心。
+
+## 功能
 
 | 功能 | 说明 |
 |---|---|
@@ -68,9 +90,9 @@ RTU / ASCII 普通从站地址为 1～247，地址 0 仅允许广播写请求。
 
 ## 开发环境
 
-前端使用 Vue 3、TypeScript、Vite、Tailwind CSS、Lucide Icons 和 Vitest，依赖通过 npm 管理。需要 Node.js 20.9 或更高版本及 npm。
+需要 Node.js 20.9 或更高版本及 npm。
 
-Windows 桌面版使用 Tauri 2，另外需要：
+构建 Windows 桌面版另外需要：
 
 - Rust 1.90 或更高版本，使用 `x86_64-pc-windows-msvc` 工具链。
 - Visual Studio 或 Microsoft C++ Build Tools，包含 MSVC x64 编译工具和 Windows SDK。
@@ -152,3 +174,11 @@ tests/          单元测试
 ```
 
 协议核心不依赖 Vue 或 Tauri。接口说明见 [src/core/README.md](src/core/README.md)，开发协作规范见 [AGENTS.md](AGENTS.md)。
+
+## 相关文档
+
+- [版本变更](CHANGELOG.md)
+- [发布说明](RELEASE.md)
+- [项目声明](NOTICE)
+
+第三方依赖保持各自的许可证及版权声明，发布包应附带适用的第三方许可证。

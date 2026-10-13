@@ -25,6 +25,12 @@
   },
   "bundle": {
     "active": true,
+    "publisher": "ShyHiker",
+    "copyright": "Copyright 2026 ShyHiker",
+    "license": "Apache-2.0",
+    "licenseFile": "../LICENSE",
+    "shortDescription": "多协议报文生成与解析工具",
+    "longDescription": "支持 Modbus RTU、ASCII 和 TCP 的离线报文生成、解析、格式转换、校验计算及数据类型转换。所有计算在本地完成",
     "targets": "all",
     "icon": [
       "icons/PduLoom_32.png",

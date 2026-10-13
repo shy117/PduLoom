@@ -25,7 +25,7 @@ code, pre { font-family: Consolas, "Courier New", monospace; }.result-label { di
 .topbar-brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .topbar-brand strong { color: var(--text); font-size: 17px; }
 .topbar-brand .brand { display: flex; padding: 0; }
-.app-logo { display: block; width: 32px; height: 32px; flex-shrink: 0; }
+.app-logo { display: block; width: 140px; height: auto; flex-shrink: 0; }
 .topbar-subtitle { font-size: 11px; }
 .sidebar-toggle { border: 0; background: transparent; color: var(--text); display: grid; place-items: center; padding: 7px; border-radius: 6px; }
 .sidebar-toggle:hover { background: var(--soft); }
@@ -70,7 +70,7 @@ main { padding: 24px; }
   .topbar { padding: 0 12px; }
   .topbar-brand strong { font-size: 14px; }
   .brand { gap: 6px; }
-  .app-logo { width: 28px; height: 28px; }
+  .app-logo { width: 104px; height: auto; }
   .stage-tag { display: none; }
 }
 
