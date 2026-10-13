@@ -2,7 +2,12 @@ node_modules/
 dist/
 *.local
 coverage/
+release/
 .npm-cache/
+
+# Tauri 构建产物与自动生成的权限配置 schema
+/src-tauri/target/
+/src-tauri/gen/schemas/
 
 # 本机环境、日志和临时文件
 .env

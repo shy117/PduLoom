@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none">
+  <defs>
+    <linearGradient id="p-body" x1="820" y1="200" x2="790" y2="805" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1E88FF"/><stop offset="0.5" stop-color="#0862E6"/><stop offset="1" stop-color="#063FAF"/>
+    </linearGradient>
+    <linearGradient id="p-fold" x1="470" y1="180" x2="800" y2="490" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0874F7"/><stop offset="1" stop-color="#063CAB"/>
+    </linearGradient>
+    <linearGradient id="l-front" x1="625" y1="398" x2="735" y2="873" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#09D9E7"/><stop offset="1" stop-color="#008EF5"/>
+    </linearGradient>
+    <linearGradient id="l-fold" x1="587" y1="900" x2="1018" y2="980" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0755C9"/><stop offset="0.55" stop-color="#009DED"/><stop offset="1" stop-color="#08CAE0"/>
+    </linearGradient>
+    <linearGradient id="flow-top" x1="370" y1="398" x2="551" y2="589" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#08B9F3"/><stop offset="1" stop-color="#0087EF"/>
+    </linearGradient>
+    <linearGradient id="flow-mid" x1="370" y1="582" x2="551" y2="767" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#09CDE8"/><stop offset="1" stop-color="#009BF0"/>
+    </linearGradient>
+    <linearGradient id="flow-bottom" x1="370" y1="758" x2="635" y2="1052" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#36E4EB"/><stop offset="1" stop-color="#009BEF"/>
+    </linearGradient>
+    <linearGradient id="node-top" x1="230" y1="367" x2="370" y2="500" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0874F7"/><stop offset="1" stop-color="#0661E3"/>
+    </linearGradient>
+    <linearGradient id="node-mid" x1="230" y1="542" x2="370" y2="681" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#09BAF0"/><stop offset="1" stop-color="#09ADE9"/>
+    </linearGradient>
+    <linearGradient id="node-bottom" x1="230" y1="718" x2="370" y2="853" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#19DFE9"/><stop offset="1" stop-color="#0CD0E6"/>
+    </linearGradient>
+  </defs>
+  <!-- 按草图比例整体缩放居中；所有可见形状均为矢量填充面。 -->
+  <g transform="translate(-12 -7) scale(.22)">
+    <!-- P 后侧环带与前侧翻折面共用内轮廓。 -->
+    <path d="M435 180H750C850 180 1035 280 1035 435V560C1035 670 930 750 838 788Q796 805 760 805H710V684C740 653 817 635 856 577Q885 542 885 496C873 410 798 338 724 338H285Q260 338 275 304Q280 291 296 276L383 198Q405 180 435 180Z" fill="url(#p-body)"/>
+    <path d="M435 180H750C843 180 887 247 887 342L885 496C873 410 798 338 724 338H285Q260 338 275 304Q280 291 296 276L383 198Q405 180 435 180Z" fill="url(#p-fold)"/>
+    <!-- 输入带独立收尾，与 L 之间保留透明间隙。 -->
+    <path d="M370 398H443C505 398 551 441 551 490V584Q551 594 544 584C537 575 536 563 535 548C529 494 492 466 445 466H370Z" fill="url(#flow-top)"/>
+    <path d="M370 582H434C501 582 551 623 551 677V761Q551 772 543 763C531 752 529 741 527 724C520 678 487 649 434 649H370Z" fill="url(#flow-mid)"/>
+    <path d="M370 758H426C502 758 550 810 550 884V912C550 973 585 1020 635 1044Q645 1052 632 1052H566C521 1052 487 1018 487 976V890C487 850 466 826 426 826H370Z" fill="url(#flow-bottom)"/>
+    <!-- L 正面竖带及底部翻折。 -->
+    <path d="M554 398H652C700 398 738 433 738 480V873H967Q1018 873 1018 926V999Q1018 1052 968 1052H738C653 1052 587 991 587 901V481Q587 430 554 404Q549 398 554 398Z" fill="url(#l-front)"/>
+    <path d="M587 772C595 838 638 873 704 873H967Q1018 873 1018 926V999Q1018 1052 968 1052H738C653 1052 587 991 587 901Z" fill="url(#l-fold)"/>
+    <rect x="230" y="367" width="140" height="133" rx="34" fill="url(#node-top)"/>
+    <rect x="230" y="542" width="140" height="139" rx="34" fill="url(#node-mid)"/>
+    <rect x="230" y="718" width="140" height="135" rx="34" fill="url(#node-bottom)"/>
+  </g>
+</svg>

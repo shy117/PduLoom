@@ -1,0 +1,45 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "PduLoom",
+  "version": "0.1.0",
+  "identifier": "com.pduloom.app",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://127.0.0.1:5173",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "PduLoom",
+        "width": 800,
+        "height": 600,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "publisher": "ShyHiker",
+    "copyright": "Copyright 2026 ShyHiker",
+    "license": "Apache-2.0",
+    "licenseFile": "../LICENSE",
+    "shortDescription": "多协议报文生成与解析工具",
+    "longDescription": "支持 Modbus RTU、ASCII 和 TCP 的离线报文生成、解析、格式转换、校验计算及数据类型转换。所有计算在本地完成",
+    "targets": "all",
+    "icon": [
+      "icons/PduLoom_32.png",
+      "icons/PduLoom_128.png",
+      "icons/PduLoom_256.png",
+      "icons/PduLoom.ico"
+    ],
+    "android": {
+      "debugApplicationIdSuffix": ".debug"
+    }
+  }
+}

@@ -1,0 +1,29 @@
+[package]
+name = "pduloom"
+version = "0.1.0"
+description = "多协议报文生成与解析工具"
+authors = ["ShyHiker"]
+license = "Apache-2.0"
+repository = ""
+edition = "2024"
+rust-version = "1.90"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "PduLoom"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2.7.2", features = [] }
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+log = "0.4"
+tauri = { version = "2.12.3", features = [] }
+tauri-plugin-log = "2"
